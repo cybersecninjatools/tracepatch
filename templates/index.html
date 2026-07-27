@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TracePatch</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f1117;--bg2:#161b27;--bg3:#1e2535;--bg4:#252d3d;--border:#2a3347;--border2:#3a4560;--text:#e2e8f0;--text2:#94a3b8;--text3:#8291a8;--purple:#7c6ff7;--purple2:#534AB7;--purple3:#3C3489;--green:#22c55e;--red:#ef4444;--red2:#b91c1c;--amber:#f59e0b;--blue:#3b82f6;--radius:8px;--radius2:12px;--font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;--mono:'JetBrains Mono','Fira Code',monospace}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;line-height:1.6}
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:210px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
+.sidebar-header{padding:18px 16px 14px;border-bottom:1px solid var(--border)}
+.sidebar-header h1{font-size:19px;font-weight:700;letter-spacing:0.02em}
+.sidebar-header p{font-size:11px;color:var(--text3);margin-top:2px}
+.nav-section{padding:8px 0}
+.nav-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;padding:6px 16px 4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 16px;cursor:pointer;font-size:13px;color:var(--text2);transition:all 0.1s;user-select:none}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--bg4);color:var(--text);font-weight:500;border-left:2px solid var(--purple)}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-item.admin-only{display:none}
+.sidebar-footer{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border)}
+.sidebar-footer .name{font-size:13px;font-weight:500}
+.sidebar-footer .role{font-size:11px;color:var(--text3);margin-top:1px}
+.role-badge{display:inline-block;padding:1px 7px;border-radius:100px;font-size:10px;font-weight:500;margin-top:4px}
+.role-badge.admin{background:#1e1240;color:#c4b5fd}
+.role-badge.master_admin{background:#3f0f0f;color:#fca5a5;font-weight:600}
+.role-badge.analyst{background:#0a2a15;color:#86efac}
+.role-badge.auditor{background:#0a1a3f;color:#93c5fd}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:11px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar h2{font-size:15px;font-weight:500}
+.topbar-actions{display:flex;gap:8px}
+.content{padding:20px;flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;font-size:13px;color:var(--text);font-family:var(--font);transition:all 0.1s;white-space:nowrap}
+.btn:hover{background:var(--bg4)}
+.btn:active{transform:scale(0.98)}
+.btn.primary{background:var(--purple2);border-color:var(--purple2);color:#fff}
+.btn.primary:hover{background:var(--purple3)}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn.danger{background:var(--red2);border-color:var(--red2);color:#fff}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:500;white-space:nowrap}
+.badge.critical{background:#3f0f0f;color:#fca5a5}
+.badge.high{background:#3f2a0a;color:#fcd34d}
+.badge.medium{background:#2d2005;color:#fbbf24}
+.badge.low{background:#0a2a15;color:#86efac}
+.badge.informational{background:#0a1a3f;color:#93c5fd}
+.badge.open{background:#3f0f0f;color:#fca5a5}
+.badge.in-progress{background:#3f2a0a;color:#fcd34d}
+.badge.resolved{background:#0a2a15;color:#86efac}
+.badge.likely-resolved{background:#1e2942;color:#93c5fd}
+.badge.risk-accepted{background:#1a1a2e;color:#a78bfa}
+.badge.false-positive{background:#1e2942;color:#93c5fd}
+.badge.compensating-control{background:#1a2e1a;color:#86efac}
+.badge.new-b{background:#1e1240;color:#c4b5fd}
+.badge.existing-b{background:#1a1f2e;color:#94a3b8}
+.badge.poam{background:#0f1f3f;color:#60a5fa}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);margin-bottom:14px;overflow:hidden}
+.card-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-header-title{font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px}
+.card-body{padding:16px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
+.metric{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);padding:16px 18px}
+.metric .label{font-size:12px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px}
+.metric .value{font-size:30px;font-weight:700;color:var(--text)}
+.metric .sub{font-size:12px;color:var(--text2);margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 12px;font-size:11px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--bg3);cursor:pointer}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text);font-family:var(--font);font-size:13px;transition:border-color 0.1s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--purple)}
+textarea{resize:vertical;min-height:72px}
+select option{background:var(--bg3)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius2);width:100%;max-width:580px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.modal.fullscreen{max-width:1100px;width:95vw;max-height:95vh}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.modal-body{padding:20px}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-chip{padding:4px 12px;border:1px solid var(--border);border-radius:100px;font-size:12px;cursor:pointer;background:transparent;color:var(--text2);font-family:var(--font);transition:all 0.1s}
+.filter-chip:hover{border-color:var(--border2);color:var(--text)}
+.filter-chip.active{background:#1e1240;border-color:var(--purple);color:#c4b5fd}
+.filter-sep{color:var(--border2);padding:0 2px}
+.upload-zone{border:1.5px dashed var(--border2);border-radius:var(--radius2);padding:40px;text-align:center;cursor:pointer;transition:border-color 0.2s;background:var(--bg3)}
+.upload-zone:hover{border-color:var(--purple)}
+.timeline-item{display:flex;gap:10px;margin-bottom:10px}
+.timeline-dot{width:7px;height:7px;border-radius:50%;background:var(--purple);margin-top:6px;flex-shrink:0}
+.timeline-text{font-size:12px;color:var(--text2);line-height:1.5}
+.timeline-text strong{color:var(--text);font-weight:500}
+.bar-row{margin-bottom:10px}
+.bar-row .bar-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.bar-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.bar-fill{height:6px;border-radius:3px;transition:width 0.4s}
+.empty{text-align:center;padding:48px;color:var(--text3)}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--purple);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.user-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.user-avatar{width:38px;height:38px;border-radius:50%;background:var(--purple3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-info .uname{font-size:13px;font-weight:500}
+.user-info .utitle{font-size:11px;color:var(--text3);margin-top:1px}
+.user-actions{display:flex;gap:6px}
+.vendor-chip{padding:8px 12px;border:1px solid var(--border2);border-radius:var(--radius);background:transparent;cursor:pointer;font-size:12px;color:var(--text2);font-family:var(--font);transition:all 0.1s;text-align:center}
+.vendor-chip:hover{background:var(--bg4);color:var(--text)}
+.vendor-chip.active{background:#1e1240;border-color:var(--purple);color:#c4b5fd;font-weight:500}
+.info-box{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 14px;font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6}
+
+@media print {
+  * { -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }
+  @page { margin:1.5cm; size:letter landscape; }
+  html, body { background:#fff!important; color:#000!important; font-size:11px!important; height:auto!important; overflow:visible!important; }
+  .app { display:block!important; height:auto!important; overflow:visible!important; }
+  .sidebar { display:none!important; }
+  .main { display:block!important; width:100%!important; overflow:visible!important; }
+  .topbar { display:none!important; }
+  .topbar-actions { display:none!important; }
+  .content { padding:0!important; display:block!important; overflow:visible!important; }
+  .btn, button { display:none!important; }
+  .filters { display:none!important; }
+  #modal-root { display:none!important; }
+  nav { display:none!important; }
+  .card { border:1px solid #ccc!important; background:#fff!important; border-radius:0!important; page-break-inside:avoid; margin-bottom:12px!important; box-shadow:none!important; }
+  .card-header { background:#1a3a5c!important; border-bottom:1px solid #ccc!important; padding:8px 12px!important; }
+  .card-header-title { color:#fff!important; font-size:12px!important; }
+  .card-body { padding:12px!important; }
+  table { border-collapse:collapse!important; width:100%!important; }
+  th { background:#1a3a5c!important; color:#fff!important; padding:6px 8px!important; font-size:10px!important; border:1px solid #999!important; }
+  td { padding:5px 8px!important; border:1px solid #ccc!important; color:#000!important; font-size:10px!important; vertical-align:top!important; background:#fff!important; }
+  tr:hover td { background:#fff!important; }
+  .badge { border:1px solid #999!important; background:#eee!important; color:#000!important; padding:1px 4px!important; border-radius:3px!important; font-size:9px!important; }
+  .metric { border:1px solid #ccc!important; background:#f9f9f9!important; border-radius:0!important; }
+  .metric .label { color:#555!important; font-size:10px!important; }
+  .metric .value { color:#000!important; font-size:18px!important; }
+  .metric .sub { color:#555!important; }
+  .metrics { display:grid!important; grid-template-columns:repeat(4,1fr)!important; gap:8px!important; }
+  .poam-header { display:block!important; }
+  textarea { display:none!important; }
+  #audit-notes-display { display:block!important; color:#000!important; font-size:11px!important; white-space:pre-wrap; }
+  .evidence-grid, .evidence-upload-btn, .thumb-del { display:none!important; }
+  .exhibit-page { display:block!important; page-break-before:always; padding:20px 0; }
+  .exhibit-page img { max-width:100%!important; max-height:90vh!important; width:auto!important; height:auto!important; object-fit:contain!important; display:block!important; margin:0 auto!important; border:1px solid #ccc!important; }
+}
+.poam-header { display:none; }
+.evidence-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:8px}
+.evidence-thumb{position:relative;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);overflow:hidden;aspect-ratio:4/3}
+.evidence-thumb img{width:100%;height:100%;object-fit:cover;cursor:pointer;display:block}
+.evidence-thumb .thumb-label{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);font-size:10px;color:#fff;padding:3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evidence-thumb .thumb-pdf-badge{position:absolute;top:4px;left:4px;background:rgba(124,111,247,0.9);color:#fff;font-size:9px;font-weight:600;padding:2px 6px;border-radius:4px;letter-spacing:0.02em}
+.evidence-thumb .thumb-del{position:absolute;top:4px;right:4px;background:rgba(185,28,28,0.85);color:#fff;border:none;border-radius:4px;font-size:10px;padding:2px 5px;cursor:pointer;display:none}
+.evidence-thumb:hover .thumb-del{display:block}
+.evidence-upload-btn{border:1.5px dashed var(--border2);border-radius:var(--radius);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:11px;gap:4px;transition:border-color 0.15s}
+.evidence-upload-btn:hover{border-color:var(--purple);color:var(--text)}
+.evidence-upload-btn svg{width:22px;height:22px}
+.lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;display:flex;align-items:center;justify-content:center;cursor:zoom-out}
+.lightbox-overlay img{max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,0.8)}
+.exhibit-page{display:none}
+</style>
+</head>
+<body>
+<div id="idle-warning" style="display:none;position:fixed;top:0;left:0;right:0;z-index:1000;background:#b45309;color:#fff;padding:12px 20px;align-items:center;justify-content:space-between;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.3)">
+  <span>Your session will expire in <strong id="idle-countdown">10m</strong> due to inactivity.</span>
+  <button onclick="resetIdleTimer()" style="background:#fff;color:#b45309;border:none;border-radius:6px;padding:5px 14px;font-weight:600;cursor:pointer;font-size:13px">Stay logged in</button>
+</div>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-header"><h1>TracePatch</h1><p>Pen Test Remediation &amp; Audit</p><div style="margin-top:6px"><span style="font-size:10px;background:#1e1240;color:#c4b5fd;padding:2px 8px;border-radius:100px;border:1px solid #534AB7">v3.7.0</span></div></div>
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" data-view="dashboard" onclick="nav('dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Pen Testing</div>
+      <div class="nav-item" data-view="findings" onclick="nav('findings')">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Findings
+      </div>
+      <div class="nav-item" data-view="poam" onclick="nav('poam')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>POA&amp;M
+      </div>
+      <div class="nav-item" data-view="upload" onclick="nav('upload')">
+        <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>Import Report
+      </div>
+      <div class="nav-item" data-view="reports" onclick="nav('reports')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Auditor Reports
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Vulnerability Management</div>
+      <div class="nav-item" data-view="vulnerabilities" onclick="nav('vulnerabilities')">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Vulnerabilities
+      </div>
+      <div class="nav-item" data-view="vulnhosts" onclick="nav('vulnhosts')">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Hosts
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Administration</div>
+      <div class="nav-item admin-only" data-view="users" onclick="nav('users')">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Users
+      </div>
+      <div class="nav-item admin-only" data-view="updates" onclick="nav('updates')" id="nav-updates">
+        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>Updates<span id="updates-badge" style="display:none;margin-left:auto;background:#3f0f0f;color:#fca5a5;font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px"></span>
+      </div>
+      <div class="nav-item admin-only" data-view="archived" onclick="nav('archived')">
+        <svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>Archived
+      </div>
+      <div class="nav-item admin-only" data-view="settings" onclick="nav('settings')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings
+      </div>
+      <div class="nav-item" data-view="changelog" onclick="nav('changelog')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Changelog
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="name" id="sidebar-user">Loading...</div>
+      <div class="role" id="sidebar-title">Security</div>
+      <div id="sidebar-role-badge"></div>
+      <button class="btn sm" onclick="openChangePassword()" style="margin-top:10px;width:100%;justify-content:center;border-color:#3a4560;color:var(--text2)">Change password</button>
+      <button class="btn sm" onclick="logout()" style="margin-top:6px;width:100%;justify-content:center;border-color:#3a4560;color:var(--text3)">Sign out</button>
+    </div>
+  </nav>
+  <div class="main">
+    <div class="topbar">
+      <h2 id="page-title">Dashboard</h2>
+      <div class="topbar-actions" id="topbar-actions">
+        <button class="btn sm" onclick="nav('upload')">Import PDF</button>
+        <button class="btn sm primary" onclick="openAddFinding()">+ Add Finding</button>
+      </div>
+    </div>
+    <div class="content" id="content"><div class="empty"><div class="spinner"></div></div></div>
+  </div>
+</div>
+<div id="modal-root"></div>
+<script>
+const API='';
+let state={view:'dashboard',filterStatus:'All',filterRisk:'All',me:null};
+let STAFF=['Unassigned'];
+const RISK_LEVELS=['Critical','High','Medium','Low','Informational'];
+const STATUSES=['Open','In Progress','Resolved','Risk Accepted','False Positive'];
+const TYPES=['External Pen Test','Internal Pen Test','Internal Vulnerability Scan','Web App Pen Test','Cloud Assessment'];
+const BAR_COLORS={Critical:'#ef4444',High:'#f59e0b',Medium:'#d97706',Low:'#22c55e',Informational:'#3b82f6'};
+
+async function api(path,opts={}){
+  const r=await fetch(API+path,{headers:{'Content-Type':'application/json',...opts.headers},...opts,body:opts.body?JSON.stringify(opts.body):undefined});
+  if(r.status===401){
+    // Session expired or not authenticated - redirect cleanly to login
+    window.location.href='/login';
+    return;
+  }
+  if(!r.ok){
+    const txt=await r.text();
+    let msg=txt;
+    try{const j=JSON.parse(txt);msg=j.error||txt;}catch(e){}
+    throw new Error(msg);
+  }
+  if(r.headers.get('content-type')?.includes('json'))return r.json();
+  return r;
+}
+
+function initials(name){return name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
+function isAdmin(){return state.me?.role==='admin'||state.me?.role==='master_admin';}
+function isMasterAdmin(){return state.me?.role==='master_admin';}
+function isAuditor(){return state.me?.role==='auditor';}
+
+async function loadMe(){
+  try{
+    state.me=await api('/api/me');
+    document.getElementById('sidebar-user').textContent=state.me.display||state.me.username;
+    document.getElementById('sidebar-title').textContent=state.me.title||orgName+' Security';
+    document.getElementById('sidebar-role-badge').innerHTML='<span class="role-badge '+state.me.role+'">'+state.me.role+'</span>';
+    if(isAdmin())document.querySelectorAll('.admin-only').forEach(el=>el.style.display='flex');
+    if(isAuditor())document.getElementById('topbar-actions').style.display='none';
+    try{
+      const users=await api('/api/users');
+      STAFF=users.map(u=>u.display);
+      STAFF.push('Vendor/External','Unassigned');
+    }catch(e){STAFF=[state.me.display,'Vendor/External','Unassigned'];}
+  }catch(e){document.getElementById('sidebar-user').textContent='User';}
+  // Load settings and init idle timeout + apply branding
+  try{
+    const settings=await api('/api/settings');
+    const getSetting=(key,def)=>{const s=settings.find(s=>s.key===key);return s?s.value:def;};
+    const timeoutMins=parseInt(getSetting('session_timeout_minutes','60'));
+    const warningMins=parseInt(getSetting('session_warning_minutes','10'));
+    const appTitle=getSetting('app_title','TracePatch');
+    const orgName=getSetting('org_name','NMERB');
+    // Apply branding
+    document.title=appTitle;
+    const h1=document.querySelector('.sidebar-header h1');
+    if(h1)h1.textContent=appTitle;
+    const orgBadge=document.querySelector('.sidebar-header p');
+    if(orgBadge)orgBadge.textContent=orgName+' • Pen Test Remediation';
+    initIdleTimeout(timeoutMins, warningMins);
+  }catch(e){
+    initIdleTimeout(60, 10);
+  }
+}
+
+function nav(view){
+  if(view==='users'&&!isAdmin())return;
+  state.view=view;
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.view===view));
+  const titles={dashboard:'Dashboard',findings:'Findings',upload:'Import Pen Test Report',poam:'POA&M Tracking',reports:'Auditor Reports',users:'User Management',review:'Review Extracted Findings',changelog:'Changelog',updates:'System Updates',archived:'Archived Engagements',settings:'Application Settings',vulnerabilities:'Vulnerability Management',vulndetail:'Vulnerability Detail',vulnhosts:'Hosts',vulnhostdetail:'Host Detail'};
+  document.getElementById('page-title').textContent=titles[view]||view;
+  render();
+}
+
+async function render(){
+  const c=document.getElementById('content');
+  c.innerHTML='<div class="empty"><div class="spinner"></div></div>';
+  try{
+    if(state.view==='dashboard')await renderDashboard(c);
+    else if(state.view==='findings')await renderFindings(c);
+    else if(state.view==='upload')renderUpload(c);
+    else if(state.view==='poam')await renderPOAM(c);
+    else if(state.view==='reports')await renderReports(c);
+    else if(state.view==='users')await renderUsers(c);
+    else if(state.view==='review')renderReview(c);
+    else if(state.view==='changelog')await renderChangelog(c);
+    else if(state.view==='updates')await renderUpdates(c);
+    else if(state.view==='archived')await renderArchived(c);
+    else if(state.view==='settings')await renderSettings(c);
+    else if(state.view==='vulnerabilities')await renderVulnerabilities(c);
+    else if(state.view==='vulndetail')await renderVulnDetail(c);
+    else if(state.view==='vulnhosts')await renderVulnHosts(c);
+    else if(state.view==='vulnhostdetail')await renderVulnHostDetail(c);
+  }catch(e){c.innerHTML='<div class="empty"><p style="color:#ef4444">Error: '+e.message+'</p></div>';}
+}
+
+async function renderDashboard(c){
+  const [stats,activity,engagements]=await Promise.all([api('/api/stats'),api('/api/activity'),api('/api/engagements')]);
+  let vulnStats=null;
+  try{vulnStats=await api('/api/vuln/stats');}catch(e){vulnStats=null;}
+  const overdueCls=stats.overdue>0?'color:#ef4444':'';
+  let engRows='';
+  for(const e of engagements){
+    engRows+=`<tr>
+      <td style="font-weight:500">${e.name}</td>
+      <td><span class="badge informational">${e.type}</span></td>
+      <td style="color:var(--text2)">${e.eng_date}</td>
+      <td>${e.finding_count}</td>
+      <td>${isAdmin()?'<button class="btn sm" data-eid="'+e.id+'" onclick="archiveEngagement(this)">Archive</button>':''}</td>
+    </tr>`;
+  }
+  let bars='';
+  for(const r of RISK_LEVELS){
+    const count=stats.by_risk[r]||0;
+    const pct=stats.total?Math.round(count/stats.total*100):0;
+    bars+=`<div class="bar-row"><div class="bar-label"><span>${r}</span><span style="color:var(--text3)">${count}</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${BAR_COLORS[r]}"></div></div></div>`;
+  }
+  let acts='';
+  for(const a of activity.slice(0,6)){
+    acts+=`<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-text"><strong>${a.finding_id}</strong> ${a.action}<br><span style="font-size:11px;color:var(--text3)">${(a.ts||'').split('T')[0]} &middot; ${a.actor}</span></div></div>`;
+  }
+  // Progress bar for overall completion
+  const completionPct=stats.completion_pct||0;
+  const completionColor=completionPct===100?'#22c55e':completionPct>=75?'#86efac':completionPct>=50?'#f59e0b':'#ef4444';
+  const critResolved=stats.critical_resolved||0;
+  const critTotal=stats.critical||0;
+  const critPct=critTotal?Math.round(critResolved/critTotal*100):100;
+  const critColor=critPct===100?'#22c55e':critPct>=75?'#86efac':'#ef4444';
+
+  // Severity bars with resolved overlay (Informational shown as count only, no ratio)
+  let bars2='';
+  for(const r of RISK_LEVELS){
+    const count=stats.by_risk[r]||0;
+    if(r==='Informational'){
+      bars2+=`<div class="bar-row">
+        <div class="bar-label"><span>${r}</span><span style="color:var(--text3)">${count} total</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%;background:${BAR_COLORS[r]};opacity:0.3"></div></div>
+      </div>`;
+      continue;
+    }
+    const resolvedCount=stats.by_risk_resolved?.[r]||0;
+    const pct=stats.total?Math.round(count/stats.total*100):0;
+    const resolvedPct=count?Math.round(resolvedCount/count*100):0;
+    bars2+=`<div class="bar-row">
+      <div class="bar-label"><span>${r}</span><span style="color:var(--text3)">${resolvedCount}/${count} resolved</span></div>
+      <div class="bar-track" style="position:relative">
+        <div class="bar-fill" style="width:${pct}%;background:${BAR_COLORS[r]};opacity:0.3"></div>
+        <div style="position:absolute;top:0;left:0;height:100%;width:${pct*resolvedPct/100}%;background:${BAR_COLORS[r]};border-radius:var(--radius)"></div>
+      </div>
+    </div>`;
+  }
+
+  c.innerHTML=`
+  <h2 style="font-size:19px;font-weight:700;color:var(--text);margin:0 0 14px 0;padding-left:12px;border-left:4px solid var(--purple)">Pen Test Progress</h2>
+  <div class="metrics">
+    <div class="metric">
+      <div class="label">Overall progress</div>
+      <div class="value" style="color:${completionColor}">${completionPct}%</div>
+      <div class="sub">${stats.actionable_resolved||0} of ${stats.actionable_total||0} closed</div>
+      <div style="margin-top:6px;height:4px;background:var(--bg3);border-radius:2px"><div style="height:100%;width:${completionPct}%;background:${completionColor};border-radius:2px;transition:width 0.4s"></div></div>
+    </div>
+    <div class="metric">
+      <div class="label">Open / In Progress</div>
+      <div class="value">${stats.open+stats.in_progress}</div>
+      <div class="sub">${stats.resolved} resolved &middot; ${stats.risk_accepted||0} risk accepted</div>
+    </div>
+    <div class="metric">
+      <div class="label">Informational</div>
+      <div class="value" style="color:var(--text2)">${(stats.by_risk&&stats.by_risk['Informational'])||0}</div>
+      <div class="sub">Not counted toward progress</div>
+    </div>
+    <div class="metric">
+      <div class="label">Critical severity</div>
+      <div class="value" style="color:${critColor}">${critResolved} / ${critTotal}</div>
+      <div class="sub">${critPct===100?'All criticals resolved':critPct+'% resolved'}</div>
+      <div style="margin-top:6px;height:4px;background:var(--bg3);border-radius:2px"><div style="height:100%;width:${critPct}%;background:${critColor};border-radius:2px;transition:width 0.4s"></div></div>
+    </div>
+    <div class="metric">
+      <div class="label">Overdue</div>
+      <div class="value" style="${overdueCls}">${stats.overdue}</div>
+      <div class="sub">Past remediation date</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="card"><div class="card-header"><span class="card-header-title">Findings by severity</span><span style="font-size:11px;color:var(--text3)">dim = total &nbsp; solid = resolved</span></div><div class="card-body">${bars2}</div></div>
+    <div class="card"><div class="card-header"><span class="card-header-title">Recent activity</span></div><div class="card-body" style="padding:12px 16px">${acts}</div></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-header-title">Engagements</span>${!isAuditor()?'<button class="btn sm" onclick="nav(\'upload\')">+ Import new</button>':''}</div>
+    <table><thead><tr><th>Engagement</th><th>Type</th><th>Date</th><th>Findings</th><th></th></tr></thead><tbody>${engRows}</tbody></table>
+  ${vulnStats && vulnStats.total > 0 ? `
+  <div style="border-top:2px solid var(--border);margin:32px 0 0 0"></div>
+  <h2 style="font-size:19px;font-weight:700;color:var(--text);margin:24px 0 14px 0;padding-left:12px;border-left:4px solid #f97316">Vulnerability Progress</h2>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-header-title">Vulnerability Management</span>
+      <button class="btn sm" onclick="nav('vulnerabilities')">View full report &rarr;</button>
+    </div>
+    <div class="card-body">
+      <div class="metrics" style="margin-bottom:${vulnStats.open_criticals && vulnStats.open_criticals.length ? '14px' : '0'}">
+        <div class="metric"><div class="label">Critical</div><div class="value" style="color:#ef4444">${vulnStats.by_severity.Critical||0}</div><div class="sub">${vulnStats.open_by_severity.Critical||0} open</div></div>
+        <div class="metric"><div class="label">High</div><div class="value" style="color:#f97316">${vulnStats.by_severity.High||0}</div><div class="sub">${vulnStats.open_by_severity.High||0} open</div></div>
+        <div class="metric"><div class="label">Medium</div><div class="value" style="color:#f59e0b">${vulnStats.by_severity.Medium||0}</div><div class="sub">${vulnStats.open_by_severity.Medium||0} open</div></div>
+        <div class="metric"><div class="label">Low</div><div class="value" style="color:#3b82f6">${vulnStats.by_severity.Low||0}</div><div class="sub">${vulnStats.open_by_severity.Low||0} open</div></div>
+        <div class="metric"><div class="label">Completion</div><div class="value" style="color:${vulnStats.completion_pct>=75?'#22c55e':vulnStats.completion_pct>=50?'#f59e0b':'#ef4444'}">${vulnStats.completion_pct}%</div><div class="sub">${vulnStats.actionable_resolved} of ${vulnStats.actionable_total}</div></div>
+        <div class="metric"><div class="label">Hosts tracked</div><div class="value">${vulnStats.host_count}</div><div class="sub">${vulnStats.scan_count} scans uploaded</div></div>
+        <div class="metric"><div class="label">Last scan</div><div class="value" style="font-size:16px">${vulnStats.last_scan_date||'&mdash;'}</div><div class="sub">${vulnStats.last_scan_date?'':'No scans yet'}</div></div>
+      </div>
+      ${vulnStats.open_criticals && vulnStats.open_criticals.length ? `
+      <div style="background:#3f0f0f;border:1px solid #b91c1c;border-radius:var(--radius);padding:12px 14px">
+        <div style="font-size:12px;font-weight:600;color:#fca5a5;margin-bottom:8px">Critical vulnerabilities requiring immediate attention</div>
+        ${vulnStats.open_criticals.map(v=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:#fca5a5;cursor:pointer" onclick="openVulnDetail(\''+v.id+'\')"><span>'+v.plugin_name+'</span><span style="color:#fca5a5;opacity:0.7">'+v.host_count+' host'+(v.host_count!==1?'s':'')+'</span></div>').join('')}
+      </div>` : ''}
+    </div>
+  </div>` : ''}
+  </div>`;
+}
+
+async function archiveEngagement(btn){
+  const id=btn.dataset.eid;
+  if(!confirm('Archive this engagement? It will be hidden from active views but all findings, evidence, and history are kept and can be viewed anytime in the Archived view.'))return;
+  await api('/api/engagements/'+id+'/archive',{method:'POST'});
+  render();
+}
+
+async function unarchiveEngagement(btn){
+  const id=btn.dataset.eid;
+  await api('/api/engagements/'+id+'/unarchive',{method:'POST'});
+  render();
+}
+
+let _pendingDeleteEngagement=null;
+function openDeleteEngagement(btn){
+  const id=btn.dataset.eid, name=btn.dataset.ename;
+  _pendingDeleteEngagement={id,name};
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500;color:#ef4444">Permanently delete engagement</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+    +'<div class="modal-body">'
+    +'<div style="background:#3f0f0f;border:1px solid #b91c1c;border-radius:var(--radius);padding:12px 14px;font-size:13px;color:#fca5a5;margin-bottom:16px;line-height:1.6">'
+    +'<strong>This cannot be undone.</strong> Deleting "'+name+'" will permanently remove this engagement, all of its findings, their full activity history, and all attached evidence files. If you want to keep this data but get it out of the way, use <strong>Archive</strong> instead.'
+    +'</div>'
+    +'<div class="form-group"><label>Type the engagement name to confirm: <strong>'+name+'</strong></label><input type="text" id="del-eng-confirm" placeholder="'+name+'"></div>'
+    +'</div>'
+    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm danger" onclick="confirmDeleteEngagement()">Permanently delete</button></div>');
+}
+
+async function confirmDeleteEngagement(){
+  if(!_pendingDeleteEngagement)return;
+  const {id,name}=_pendingDeleteEngagement;
+  const typed=document.getElementById('del-eng-confirm').value.trim();
+  if(typed!==name){alert('The name you typed does not match. Deletion cancelled.');return;}
+  try{
+    await api('/api/engagements/'+id,{method:'DELETE',body:{confirm_name:typed}});
+    _pendingDeleteEngagement=null;
+    closeModal();render();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function renderFindings(c){
+  const params=new URLSearchParams();
+  if(state.filterStatus!=='All')params.set('status',state.filterStatus);
+  if(state.filterRisk!=='All')params.set('risk',state.filterRisk);
+  const findings=await api('/api/findings?'+params);
+  const today=new Date().toISOString().split('T')[0];
+  let chips1='',chips2='';
+  for(const s of['All',...STATUSES])chips1+=`<button class="filter-chip ${state.filterStatus===s?'active':''}" onclick="setFilter('status','${s}')">${s}</button>`;
+  for(const r of['All',...RISK_LEVELS.slice(0,4)])chips2+=`<button class="filter-chip ${state.filterRisk===r?'active':''}" onclick="setFilter('risk','${r}')">${r}</button>`;
+  // Sorting state
+  if(!state.findSort)state.findSort={col:'id',dir:1};
+  const sortedFindings=[...findings].sort((a,b)=>{
+    const col=state.findSort.col, dir=state.findSort.dir;
+    const av=(a[col]||'').toString().toLowerCase(), bv=(b[col]||'').toString().toLowerCase();
+    return av<bv?-dir:av>bv?dir:0;
+  });
+
+  // Rebuild rows with sort applied
+  rows='';
+  if(!sortedFindings.length){rows='<tr><td colspan="10"><div class="empty"><p>No findings match current filters.</p></div></td></tr>';}
+  for(const f of sortedFindings){
+    const today=new Date().toISOString().split('T')[0];
+    const overdue=f.status!=='Resolved'&&f.status!=='Risk Accepted'&&f.due_date&&f.due_date<today;
+    rows+=`<tr onclick="openFinding('${f.id}')" style="cursor:pointer">
+      <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${f.id}</td>
+      <td style="max-width:220px;font-weight:500">${f.title}</td>
+      <td><span class="badge ${f.risk.toLowerCase()}">${f.risk}</span></td>
+      <td><span class="badge ${f.status.toLowerCase().replace(/ /g,'-')}">${f.status}</span></td>
+      <td style="font-size:11px;color:var(--text2)">${f.source_label||'&mdash;'}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.affected_hosts||'&mdash;'}</td>
+      <td style="font-size:12px;color:var(--text2)">${f.owner}</td>
+      <td style="font-size:12px;color:${overdue?'#ef4444':'var(--text2)'}">${f.due_date||'&mdash;'}${overdue?' ⚠':''}</td>
+      <td>${f.in_poam?'<span class="badge poam">Yes</span>':''}</td>
+    </tr>`;
+  }
+
+  function sortTh(col,label){
+    const active=state.findSort.col===col;
+    const arrow=active?(state.findSort.dir===1?'▲':'▼'):'';
+    return `<th onclick="setSortFindings('${col}')" style="cursor:pointer;user-select:none;white-space:nowrap">${label} ${arrow}</th>`;
+  }
+
+  c.innerHTML=`<div class="filters">${chips1}<span class="filter-sep">|</span>${chips2}</div>
+  <div class="card"><table><thead><tr>
+    ${sortTh('id','ID')}
+    ${sortTh('title','Finding')}
+    ${sortTh('risk','Risk')}
+    ${sortTh('status','Status')}
+    ${sortTh('source_label','Source')}
+    ${sortTh('affected_hosts','Affected Systems')}
+    ${sortTh('owner','Owner')}
+    ${sortTh('due_date','Due date')}
+    <th>POA&amp;M</th>
+  </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function setSortFindings(col){
+  if(!state.findSort)state.findSort={col:'id',dir:1};
+  if(state.findSort.col===col){
+    state.findSort.dir*=-1;
+  } else {
+    state.findSort={col,dir:1};
+  }
+  render();
+}
+
+function setFilter(type,val){
+  if(type==='status')state.filterStatus=val;
+  else state.filterRisk=val;
+  render();
+}
+
+function renderUpload(c){
+  let typeOpts='';for(const t of TYPES)typeOpts+=`<option>${t}</option>`;
+  c.innerHTML=`<div style="max-width:620px;margin:0 auto">
+  <div class="card"><div class="card-header"><span class="card-header-title">Upload pen test report</span></div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="form-group"><label>Engagement name</label><input id="up-eng-name" placeholder="Securin Internal Pen Test April 2026"/></div>
+      <div class="form-group"><label>Date</label><input type="date" id="up-eng-date"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Type</label><select id="up-eng-type">${typeOpts}</select></div>
+      <div class="form-group"><label>Vendor / firm</label><input id="up-eng-vendor" placeholder="Securin, NodeZero, internal..."/></div>
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Report format</label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">
+        <button class="vendor-chip active" data-vendor="securin" onclick="selectVendor(this)">Securin</button>
+        <button class="vendor-chip" data-vendor="nodezero" onclick="selectVendor(this)">NodeZero / Horizon3</button>
+        <button class="vendor-chip" data-vendor="nessus" onclick="selectVendor(this)">Nessus / Tenable CSV</button>
+        <button class="vendor-chip" data-vendor="rapid7" onclick="selectVendor(this)">Rapid7</button>
+        <button class="vendor-chip" data-vendor="generic" onclick="selectVendor(this)">Other / Generic</button>
+      </div>
+    </div>
+    <div class="upload-zone" id="upload-zone" style="text-align:center;padding:40px">
+      <p style="font-weight:500;margin-bottom:6px">Click to upload PDF or CSV</p>
+      <p style="color:var(--text3);font-size:12px">Parsed server-side only &middot; No data leaves your environment</p>
+      <input type="file" accept=".pdf,.csv" style="display:none" id="pdf-input" onchange="handlePDFUpload(this)">
+    </div>
+    <div id="upload-result"></div>
+    <button class="btn sm" style="margin-top:12px" id="choose-btn">Choose file</button>
+  </div></div>
+</div>`;
+  document.getElementById('upload-zone').addEventListener('click',()=>document.getElementById('pdf-input').click());
+  document.getElementById('choose-btn').addEventListener('click',()=>document.getElementById('pdf-input').click());
+  // Restore active vendor chip
+  document.querySelectorAll('.vendor-chip').forEach(b=>{
+    if(b.dataset.vendor===selectedVendor) b.classList.add('active');
+    else b.classList.remove('active');
+  });
+}
+
+let selectedVendor = 'securin';
+
+function selectVendor(btn){
+  document.querySelectorAll('.vendor-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedVendor = btn.dataset.vendor;
+  // Update file input to accept CSV for Nessus
+  const input = document.getElementById('pdf-input');
+  if(selectedVendor === 'nessus'){
+    input.accept = '.csv,.pdf';
+  } else {
+    input.accept = '.pdf,.csv';
+  }
+}
+
+function handlePDFUpload(input){
+  const file=input.files[0];if(!file)return;
+  const res=document.getElementById('upload-result');
+  res.innerHTML='<div style="padding:12px;margin-top:12px;background:var(--bg3);border-radius:var(--radius)"><p style="color:var(--text2)">'+file.name+' ('+Math.round(file.size/1024)+' KB)</p><div style="margin-top:10px;display:flex;gap:8px"><button id="do-upload-btn" class="btn sm primary">Upload &amp; parse</button><button class="btn sm" onclick="nav(\'upload\')">Cancel</button></div></div>';
+  document.getElementById('do-upload-btn').addEventListener('click', uploadPDF);
+}
+
+async function uploadPDF(){
+  const input=document.getElementById('pdf-input');
+  if(!input.files[0])return;
+  const form=new FormData();
+  form.append('file',input.files[0]);
+  form.append('vendor',selectedVendor);
+  const engName   = document.getElementById('up-eng-name')?.value.trim();
+  const engDate   = document.getElementById('up-eng-date')?.value;
+  const engType   = document.getElementById('up-eng-type')?.value;
+  const engVendor = document.getElementById('up-eng-vendor')?.value.trim();
+  if(engName)   form.append('eng_name', engName);
+  if(engDate)   form.append('eng_date', engDate);
+  if(engType)   form.append('eng_type', engType);
+  if(engVendor) form.append('eng_vendor', engVendor);
+  const res=document.getElementById('upload-result');
+  res.innerHTML='<div style="padding:12px;margin-top:12px;background:var(--bg3);border-radius:var(--radius)"><div class="spinner"></div> Parsing PDF on server...</div>';
+  let data;
+  try{
+    const r=await fetch('/api/upload',{method:'POST',body:form,credentials:'same-origin'});
+    data=await r.json();
+  }catch(e){
+    res.innerHTML='<p style="color:#ef4444;padding:12px">Upload failed: '+e.message+'</p>';
+    return;
+  }
+  if(!data.findings||!data.findings.length){
+    res.innerHTML='<p style="color:var(--text3);padding:12px">No findings extracted automatically. Add findings manually below.</p>';
+    return;
+  }
+  state.pendingFindings=data.findings;
+  state.pendingEngId=data.engagement_id;
+  nav('review');
+}
+
+async function importExtracted(findings,engId){
+  for(let i=0;i<findings.length;i++){
+    const cb=document.getElementById('imp-'+i);
+    if(!cb||!cb.checked)continue;
+    await api('/api/findings',{method:'POST',body:{...findings[i],engagement_id:engId}});
+  }
+  nav('findings');
+}
+
+async function createEngagement(){
+  const name=document.getElementById('eng-name').value.trim();
+  if(!name){alert('Enter an engagement name.');return;}
+  await api('/api/engagements',{method:'POST',body:{name,type:document.getElementById('eng-type').value,vendor:document.getElementById('eng-vendor').value,eng_date:document.getElementById('eng-date').value||new Date().toISOString().split('T')[0]}});
+  alert('Engagement created.');nav('findings');
+}
+
+async function renderPOAM(c){
+  const findings=await api('/api/findings?poam=1');
+  const all=await api('/api/findings');
+  const notInPOAM=all.filter(f=>!f.in_poam);
+  const byRisk={Critical:[],High:[],Medium:[],Low:[]};
+  findings.forEach(f=>{if(byRisk[f.risk])byRisk[f.risk].push(f);});
+  let html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:13px;color:var(--text2)">'+findings.length+' findings in POA&amp;M</span><div style="display:flex;gap:8px"><button class="btn sm" onclick="exportCSV(true)">Export CSV</button><button class="btn sm primary" onclick="nav(\'reports\')">Auditor report</button></div></div>';
+  for(const risk of['Critical','High','Medium','Low']){
+    const fl=byRisk[risk];if(!fl.length)continue;
+    let rows='';
+    for(const f of fl)rows+=`<tr onclick="openFinding('${f.id}')"><td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${f.id}</td><td style="font-weight:500">${f.title}</td><td><span class="badge ${f.status.toLowerCase().replace(/ /g,'-')}">${f.status}</span></td><td style="font-size:12px">${f.owner}</td><td style="font-size:12px">${f.due_date||'&mdash;'}</td><td style="font-size:12px">${f.evidence?'<span style="color:#22c55e">&#10003; Present</span>':'<span style="color:#f59e0b">Needed</span>'}</td></tr>`;
+    html+=`<div class="card"><div class="card-header"><span class="card-header-title"><span class="badge ${risk.toLowerCase()}">${risk}</span> <span style="color:var(--text3)">${fl.length} finding${fl.length>1?'s':''}</span></span></div><table><thead><tr><th>ID</th><th>Finding</th><th>Status</th><th>Owner</th><th>Due</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+  if(notInPOAM.length){
+    let rows='';
+    for(const f of notInPOAM)rows+=`<tr><td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${f.id}</td><td>${f.title}</td><td><span class="badge ${f.risk.toLowerCase()}">${f.risk}</span></td><td><span class="badge ${f.status.toLowerCase().replace(/ /g,'-')}">${f.status}</span></td><td><button class="btn sm" data-fid="${f.id}" onclick="addToPOAM(this)">Add to POA&amp;M</button></td></tr>`;
+    html+=`<div class="card"><div class="card-header"><span class="card-header-title">Not yet in POA&amp;M</span></div><table><thead><tr><th>ID</th><th>Finding</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+  c.innerHTML=html;
+}
+
+async function addToPOAM(btn){
+  await api('/api/findings/'+btn.dataset.fid,{method:'PUT',body:{in_poam:1}});render();
+}
+
+async function renderReports(c){
+  const [stats,findings,notesData]=await Promise.all([api('/api/stats'),api('/api/findings?poam=1'),api('/api/audit_notes')]);
+  const pct=stats.total?Math.round(stats.resolved/stats.total*100):0;
+  const today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const byRisk={Critical:[],High:[],Medium:[],Low:[],Informational:[]};
+  for(const f of findings){if(byRisk[f.risk])byRisk[f.risk].push(f);}
+  let allRows='';
+  for(const risk of['Critical','High','Medium','Low','Informational']){
+    for(const f of byRisk[risk]){
+      const statusColor=f.status==='Resolved'?'color:#16a34a':f.status==='Open'?'color:#b91c1c':'color:#b45309';
+      allRows+='<tr onclick="window.open(\'/finding-report/'+encodeURIComponent(f.id)+'\',\'_blank\')" style="cursor:pointer" title="Click to open this finding as a standalone report in a new tab"><td style="font-weight:600;font-family:var(--mono);font-size:11px;white-space:nowrap">'+f.id+'</td><td style="font-weight:500">'+f.title+'</td><td style="text-align:center"><span class="badge '+f.risk.toLowerCase()+'">'+f.risk+'</span></td><td style="font-size:11px;font-family:var(--mono)">'+(f.affected_hosts||'&mdash;')+'</td><td style="font-size:12px">'+( f.description||'&mdash;')+'</td><td style="font-size:12px">'+(f.remediation||'&mdash;')+'</td><td style="font-size:12px;white-space:nowrap">'+(f.due_date||'&mdash;')+'</td><td style="font-size:12px;'+statusColor+';font-weight:500"><span class="badge '+f.status.toLowerCase().replace(/ /g,'-')+'">'+f.status+'</span></td><td style="font-size:12px">'+f.owner+'</td><td style="font-size:12px">'+(f.evidence||'&mdash;')+'</td></tr>';
+    }
+  }
+  c.innerHTML='<div class="poam-header" style="margin-bottom:20px;padding-bottom:16px;border-bottom:3px solid #1a3a5c"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:20px;font-weight:700;color:#1a3a5c">'+orgName+'</div><div style="font-size:15px;font-weight:500;margin-top:4px">Plan of Action &amp; Milestones (POA&amp;M)</div><div style="font-size:12px;color:#555;margin-top:4px">NIST SP 800-53 Rev 5</div></div><div style="text-align:right;font-size:11px;color:#555"><div><strong>Report Date:</strong> '+today+'</div><div><strong>Classification:</strong> Sensitive / Internal Use Only</div><div><strong>Prepared by:</strong> IT Security</div></div></div></div>'
+  +'<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"><button class="btn primary" onclick="window.print()">Print / Save PDF</button><button class="btn" onclick="exportCSV(true)">Export POA&amp;M CSV</button><button class="btn" onclick="exportCSV(false)">Export all CSV</button></div>'
+  +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px"><div class="metric"><div class="label">Total POA&amp;M items</div><div class="value">'+findings.length+'</div></div><div class="metric"><div class="label">Open / In Progress</div><div class="value" style="color:#ef4444">'+(stats.open+stats.in_progress)+'</div></div><div class="metric"><div class="label">Resolved</div><div class="value" style="color:#22c55e">'+stats.resolved+'</div><div class="sub">'+pct+'% rate</div></div><div class="metric"><div class="label">Overdue</div><div class="value" style="color:'+(stats.overdue>0?'#ef4444':'inherit')+'">'+stats.overdue+'</div></div></div>'
+  +'<div class="card"><div class="card-header"><span class="card-header-title">POA&amp;M Findings Table</span><span style="font-size:12px;color:var(--text3)">As of '+today+' &mdash; '+findings.length+' items</span></div><div style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Weakness / Finding</th><th>Risk</th><th>Affected Systems</th><th>Description</th><th>Remediation Plan</th><th>Scheduled Completion</th><th>Status</th><th>Responsible Party</th><th>Evidence / Closure Notes</th></tr></thead><tbody>'+(allRows||'<tr><td colspan="10" style="text-align:center;padding:20px">No findings in POA&M.</td></tr>')+'</tbody></table></div></div>'
+  +'<div class="card"><div class="card-header"><span class="card-header-title">Analyst Notes</span></div><div class="card-body">'
+  +'<div id="audit-notes-display" style="min-height:60px;font-size:13px;color:var(--text2);white-space:pre-wrap;line-height:1.6">'+(notesData.notes||'<span style="color:var(--text3)">No notes entered.</span>')+'</div>'
+  +'<textarea id="audit-notes-txt" style="min-height:120px;width:100%;margin-top:12px" placeholder="Add notes for the auditor package...">'+(notesData.notes||'')+'</textarea>'
+  +'<div style="margin-top:8px"><button class="btn sm primary" onclick="saveNotes()">Save notes</button></div>'
+  +'</div></div>'
+  +'<div class="card"><div class="card-header"><span class="card-header-title">Certification Statement</span></div><div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">I hereby certify that the information contained in this Plan of Action and Milestones accurately represents the current security posture and remediation status of the '+orgName+' information systems as of the date indicated above.<div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:40px"><div><div style="border-bottom:1px solid var(--border2);margin-bottom:4px;height:32px"></div><div style="font-size:11px">Signature &mdash; IT Security Analyst</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Date: _______________</div></div><div><div style="border-bottom:1px solid var(--border2);margin-bottom:4px;height:32px"></div><div style="font-size:11px">Signature &mdash; CIO / Authorizing Official</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Date: _______________</div></div></div></div></div>'
+  +'<div id="exhibit-section"></div>';
+  loadExhibits(findings);
+}
+
+async function loadExhibits(findings){
+  const section=document.getElementById('exhibit-section');
+  if(!section)return;
+  let exhibitNum=1;
+  let html='';
+  for(const f of findings){
+    let files=[];
+    try{files=await api('/api/findings/'+f.id+'/evidence_files');}catch(e){continue;}
+    if(!files.length)continue;
+    for(const ef of files){
+      const pages=evidencePageUrls(f.id, ef);
+      const isPdf=ef.mime_type==='application/pdf';
+      pages.forEach((pageUrl, pIdx)=>{
+        const pageLabel=isPdf&&pages.length>1?' (page '+(pIdx+1)+' of '+pages.length+')':'';
+        html+='<div class="exhibit-page" style="page-break-before:always;padding:20px 0">'
+          +'<div style="font-size:11px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Exhibit '+exhibitNum+'</div>'
+          +'<div style="font-size:13px;font-weight:500;margin-bottom:2px">'+f.id+' &mdash; '+f.title+'</div>'
+          +'<div style="font-size:11px;color:#555;margin-bottom:12px">Evidence file: '+ef.orig_name+pageLabel+' &mdash; Uploaded by '+ef.uploaded_by+' on '+(ef.uploaded_at||'').split('T')[0]+'</div>'
+          +'<img src="'+pageUrl+'" alt="'+ef.orig_name+'" style="max-width:100%;max-height:75vh;object-fit:contain;display:block;border:1px solid #ccc">'
+          +'</div>';
+        exhibitNum++;
+      });
+    }
+  }
+  if(html){
+    section.innerHTML='<div style="margin-top:20px;padding-top:16px;border-top:2px solid var(--border)"><div style="font-size:13px;font-weight:600;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">Exhibit Index &mdash; Evidence Images</div><p style="font-size:12px;color:var(--text3);margin-bottom:12px">The following pages contain evidence images and documents referenced as proof of remediation or vulnerability verification.</p></div>'+html;
+  } else {
+    section.innerHTML='';
+  }
+}
+
+
+async function saveNotes(){
+  const notes=document.getElementById('audit-notes-txt').value;
+  await api('/api/audit_notes',{method:'POST',body:{notes}});
+  const disp=document.getElementById('audit-notes-display');
+  if(disp) disp.innerHTML=notes||'<span style="color:var(--text3)">No notes entered.</span>';
+  alert('Saved.');
+}
+function exportCSV(poamOnly){window.location.href='/api/export/csv'+(poamOnly?'?poam=1':'');}
+
+async function renderUsers(c){
+  if(!isAdmin()){c.innerHTML='<div class="empty"><p>Admin access required.</p></div>';return;}
+  const users=await api('/api/users');
+  let pending=[];
+  try{pending=await api('/api/access-requests');}catch(e){pending=[];}
+  const masterAdmin=isMasterAdmin();
+
+  let pendingCards='';
+  for(const r of pending){
+    pendingCards+='<div class="user-card" style="border-color:#534AB7">'
+      +'<div class="user-avatar" style="background:#3a2f7a">'+initials(r.display)+'</div>'
+      +'<div class="user-info"><div class="uname">'+escHtml(r.display)+' <span class="role-badge analyst">requested: '+escHtml(r.requested_role)+'</span></div>'
+      +'<div class="utitle">'+escHtml(r.email||'no email')+' &middot; <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">'+escHtml(r.username)+'</span> &middot; from '+escHtml(r.src_ip||'')+'</div>'
+      +(r.justification?'<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">"'+escHtml(r.justification)+'"</div>':'')
+      +'</div>'
+      +'<div class="user-actions">'
+      +'<button class="btn sm primary" data-reqid="'+r.id+'" data-username="'+escHtml(r.username)+'" data-display="'+escHtml(r.display)+'" data-role="'+escHtml(r.requested_role)+'" onclick="openApproveRequest(this)">Approve</button>'
+      +'<button class="btn sm danger" data-reqid="'+r.id+'" onclick="denyRequest(this)">Deny</button>'
+      +'</div></div>';
+  }
+
+  let cards='';
+  for(const u of users){
+    const isElevatedTarget=(u.role==='admin'||u.role==='master_admin');
+    const canRemove=u.username!==state.me?.username&&(!isElevatedTarget||masterAdmin);
+    cards+=`<div class="user-card"><div class="user-avatar">${initials(u.display||u.username)}</div><div class="user-info"><div class="uname">${u.display} <span class="role-badge ${u.role}">${u.role.replace('_',' ')}</span></div><div class="utitle">${u.title||'&mdash;'} &middot; <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${u.username}</span></div></div><div class="user-actions"><button class="btn sm" data-username="${u.username}" data-display="${u.display}" data-title="${u.title||''}" data-role="${u.role}" onclick="editUser(this)">Edit</button>${u.username===state.me?.username?'<span style="font-size:11px;color:var(--text3);padding:5px 6px">You</span>':(canRemove?'<button class="btn sm danger" data-username="'+u.username+'" onclick="removeUser(this)">Remove</button>':'<span style="font-size:11px;color:var(--text3);padding:5px 6px">Protected</span>')}</div></div>`;
+  }
+
+  let roleOpts='<option value="analyst">Analyst</option><option value="auditor">Auditor</option>';
+  if(masterAdmin)roleOpts+='<option value="admin">Admin</option><option value="master_admin">Master Admin</option>';
+
+  c.innerHTML=`${pending.length?'<div class="card" style="border-color:#534AB7"><div class="card-header"><span class="card-header-title">Pending Access Requests</span><span style="font-size:12px;color:var(--text3)">'+pending.length+' awaiting review</span></div><div class="card-body" style="padding:12px 16px">'+pendingCards+'</div></div>':''}
+  <div class="info-box">Create and manage user accounts here. Users sign in with the username and password you set &mdash; no server access needed.${masterAdmin?'':' Only a master admin can assign Admin or Master Admin roles.'}</div>
+  <div class="card"><div class="card-header"><span class="card-header-title">Add user</span></div><div class="card-body">
+    <div class="form-row"><div class="form-group"><label>Username</label><input id="nu-username" placeholder="jsmith"/></div><div class="form-group"><label>Display name</label><input id="nu-display" placeholder="Jane Smith"/></div></div>
+    <div class="form-row"><div class="form-group"><label>Job title</label><input id="nu-title" placeholder="IT Analyst"/></div><div class="form-group"><label>Role</label><select id="nu-role">${roleOpts}</select></div></div>
+    <div class="form-row"><div class="form-group"><label>Initial password (min 8 chars)</label><input type="text" id="nu-password" placeholder="Set a temporary password"/><div style="font-size:11px;color:var(--text3);margin-top:3px">Share with the user; they can change it after signing in.</div></div><div class="form-group"></div></div>
+    <button class="btn primary" onclick="addUser()">Create user</button>
+  </div></div>
+  <div class="card"><div class="card-header"><span class="card-header-title">Current users</span><span style="font-size:12px;color:var(--text3)">${users.length} users</span></div><div class="card-body" style="padding:12px 16px">${cards}</div></div>`;
+}
+
+function escHtml(s){
+  if(s===null||s===undefined)return '';
+  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function addUser(){
+  const username=document.getElementById('nu-username').value.trim().toLowerCase();
+  const display=document.getElementById('nu-display').value.trim();
+  const password=document.getElementById('nu-password').value;
+  if(!username||!display){alert('Username and display name required.');return;}
+  if(password.length<8){alert('Password must be at least 8 characters.');return;}
+  try{
+    await api('/api/users',{method:'POST',body:{username,display,password,title:document.getElementById('nu-title').value.trim(),role:document.getElementById('nu-role').value}});
+    alert('User "'+username+'" created. They can now sign in with the password you set.');
+    render();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+function editUser(btn){
+  const username=btn.dataset.username,display=btn.dataset.display,title=btn.dataset.title,role=btn.dataset.role;
+  const masterAdmin=isMasterAdmin();
+  let roleOpts='<option value="analyst" '+(role==='analyst'?'selected':'')+'>Analyst</option><option value="auditor" '+(role==='auditor'?'selected':'')+'>Auditor</option>';
+  if(masterAdmin){
+    roleOpts+='<option value="admin" '+(role==='admin'?'selected':'')+'>Admin</option><option value="master_admin" '+(role==='master_admin'?'selected':'')+'>Master Admin</option>';
+  } else if(role==='admin'||role==='master_admin'){
+    roleOpts='<option value="'+role+'" selected>'+(role==='master_admin'?'Master Admin':'Admin')+' (only a master admin can change this)</option>';
+  }
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Edit user &mdash; '+username+'</span><button class="btn sm" onclick="closeModal()">X</button></div><div class="modal-body"><div class="form-group"><label>Display name</label><input id="eu-display" value="'+display+'"/></div><div class="form-group"><label>Job title</label><input id="eu-title" value="'+title+'"/></div><div class="form-group"><label>Role</label><select id="eu-role" '+((role==='admin'||role==='master_admin')&&!masterAdmin?'disabled':'')+'>'+roleOpts+'</select></div><div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px"><label>Reset password <span style="font-size:10px;color:var(--text3)">(leave blank to keep current)</span></label><input type="text" id="eu-password" placeholder="New password (min 8 chars)"/></div></div><div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm primary" onclick="saveUser(\''+username+'\')">Save</button></div>');
+}
+
+async function saveUser(username){
+  const body={display:document.getElementById('eu-display').value.trim(),title:document.getElementById('eu-title').value.trim(),role:document.getElementById('eu-role').value};
+  const pw=document.getElementById('eu-password').value;
+  if(pw){
+    if(pw.length<8){alert('Password must be at least 8 characters.');return;}
+    body.password=pw;
+  }
+  try{
+    await api('/api/users/'+username,{method:'PUT',body});
+    closeModal();if(username===state.me?.username)await loadMe();render();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function removeUser(btn){
+  const username=btn.dataset.username;
+  if(!confirm('Remove user "'+username+'"? They will no longer be able to sign in.'))return;
+  await api('/api/users/'+username,{method:'DELETE'});render();
+}
+
+function openApproveRequest(btn){
+  const reqId=btn.dataset.reqid, username=btn.dataset.username, display=btn.dataset.display, role=btn.dataset.role;
+  const masterAdmin=isMasterAdmin();
+  let roleOpts='<option value="analyst" '+(role==='analyst'?'selected':'')+'>Analyst</option><option value="auditor" '+(role==='auditor'?'selected':'')+'>Auditor</option>';
+  if(masterAdmin)roleOpts+='<option value="admin">Admin</option><option value="master_admin">Master Admin</option>';
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Approve request &mdash; '+username+'</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+    +'<div class="modal-body">'
+    +'<div class="form-group"><label>Role to grant</label><select id="ar-role">'+roleOpts+'</select></div>'
+    +'<div class="form-group"><label>Set initial password (min 8 chars)</label><input type="text" id="ar-password" placeholder="Temporary password for '+display+'"/></div>'
+    +'</div>'
+    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm primary" onclick="confirmApproveRequest('+reqId+')">Approve &amp; create account</button></div>');
+}
+
+async function confirmApproveRequest(reqId){
+  const role=document.getElementById('ar-role').value;
+  const password=document.getElementById('ar-password').value;
+  if(password.length<8){alert('Password must be at least 8 characters.');return;}
+  try{
+    await api('/api/access-requests/'+reqId+'/approve',{method:'POST',body:{role,password}});
+    closeModal();render();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function denyRequest(btn){
+  const reqId=btn.dataset.reqid;
+  if(!confirm('Deny this access request?'))return;
+  await api('/api/access-requests/'+reqId+'/deny',{method:'POST'});
+  render();
+}
+
+async function openFindingReport(id){
+  const f=await api('/api/findings/'+id);
+  let files=[];
+  try{files=await api('/api/findings/'+id+'/evidence_files');}catch(e){files=[];}
+
+  const statusColor=f.status==='Resolved'?'#16a34a':f.status==='Open'?'#b91c1c':'#b45309';
+  let exhibitsHtml='';
+  let exhibitNum=1;
+  for(const ef of files){
+    const pages=evidencePageUrls(id, ef);
+    const isPdf=ef.mime_type==='application/pdf';
+    pages.forEach((pageUrl,pIdx)=>{
+      const pageLabel=isPdf&&pages.length>1?' (page '+(pIdx+1)+' of '+pages.length+')':'';
+      exhibitsHtml+='<div style="margin-top:24px;padding-top:16px;border-top:1px solid #333">'
+        +'<div style="font-size:11px;font-weight:600;color:#93c5fd;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Exhibit '+exhibitNum+'</div>'
+        +'<div style="font-size:11px;color:#888;margin-bottom:10px">Evidence file: '+ef.orig_name+pageLabel+' &mdash; Uploaded by '+ef.uploaded_by+' on '+(ef.uploaded_at||'').split('T')[0]+'</div>'
+        +'<img src="'+pageUrl+'" alt="'+ef.orig_name+'" style="max-width:100%;max-height:600px;object-fit:contain;display:block;border:1px solid #444;border-radius:4px">'
+        +'</div>';
+      exhibitNum++;
+    });
+  }
+
+  const td1='padding:6px 8px;font-weight:600;border:1px solid #ccc;background:#f5f5f5;color:#111';
+  const td2='padding:6px 8px;border:1px solid #ccc;color:#111';
+  showModal('<div class="modal-header"><span style="font-size:14px;font-weight:500;color:var(--text3)">Report preview &mdash; read only</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+    +'<div class="modal-body" style="max-width:100%">'
+    +'<div style="background:#fff;color:#111;padding:24px;border-radius:6px;font-family:Arial,sans-serif">'
+    +'<div style="border-bottom:3px solid #1a3a5c;padding-bottom:10px;margin-bottom:16px">'
+    +'<div style="font-size:11px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.05em">'+orgName+' &mdash; POA&amp;M Finding</div>'
+    +'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr><td style="'+td1+';width:140px">Finding ID</td><td style="'+td2+';font-family:monospace">'+f.id+'</td></tr>'
+    +'<tr><td style="'+td1+'">Weakness / Finding</td><td style="'+td2+';font-weight:500">'+f.title+'</td></tr>'
+    +'<tr><td style="'+td1+'">Risk</td><td style="'+td2+'"><span style="display:inline-block;padding:2px 8px;border-radius:3px;background:#eee;border:1px solid #999;font-size:11px;color:#111">'+f.risk+'</span></td></tr>'
+    +'<tr><td style="'+td1+'">Affected Systems</td><td style="'+td2+';font-family:monospace;font-size:11px">'+(f.affected_hosts||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+'">CVEs</td><td style="'+td2+';font-size:11px">'+(f.cves||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+'">Description</td><td style="'+td2+'">'+(f.description||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+'">Remediation Plan</td><td style="'+td2+'">'+(f.remediation||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+'">Scheduled Completion</td><td style="'+td2+'">'+(f.due_date||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+'">Status</td><td style="'+td2+'"><span style="color:'+statusColor+';font-weight:600">'+f.status+'</span></td></tr>'
+    +'<tr><td style="'+td1+'">Responsible Party</td><td style="'+td2+'">'+f.owner+'</td></tr>'
+    +'<tr><td style="'+td1+'">Evidence / Closure Notes</td><td style="'+td2+'">'+(f.evidence||'&mdash;')+'</td></tr>'
+    +'</table>'
+    +(exhibitsHtml?'<div style="margin-top:20px"><div style="font-size:12px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.05em;border-top:2px solid #1a3a5c;padding-top:10px">Exhibit Index</div></div>':'')
+    +'</div>'
+    +(exhibitsHtml?'<div style="background:#1a1a2e;color:#fff;padding:20px;border-radius:6px;margin-top:12px">'+exhibitsHtml+'</div>':'')
+    +'</div>'
+    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Close</button></div>', 'fullscreen');
+}
+
+async function openFinding(id){
+  const f=await api('/api/findings/'+id);
+  const canEdit=!isAuditor();
+  const dis=canEdit?'':'disabled';
+  let riskOpts='',statusOpts='',ownerOpts='',newOpts='',poamOpts='';
+  for(const r of RISK_LEVELS)riskOpts+='<option '+(f.risk===r?'selected':'')+'>'+r+'</option>';
+  for(const s of STATUSES)statusOpts+='<option '+(f.status===s?'selected':'')+'>'+s+'</option>';
+  for(const s of STAFF)ownerOpts+='<option '+(f.owner===s?'selected':'')+'>'+s+'</option>';
+  newOpts='<option value="0" '+(f.is_new?'':'selected')+'>Existing/recurring</option><option value="1" '+(f.is_new?'selected':'')+'>New finding</option>';
+  poamOpts='<option value="0" '+(f.in_poam?'':'selected')+'>No</option><option value="1" '+(f.in_poam?'selected':'')+'>Yes</option>';
+  let hist='';
+  for(const h of(f.history||[]))hist+='<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-text"><strong>'+h.actor+'</strong> &mdash; '+h.action+'<br><span style="font-size:11px;color:var(--text3)">'+(h.ts||'').split('T')[0]+'</span></div></div>';
+  showModal(`<div class="modal-header"><div><div style="font-size:11px;font-family:var(--mono);color:var(--text3)">${f.id}</div><div style="font-size:15px;font-weight:500">${f.title}</div></div><button class="btn sm" onclick="closeModal()">X</button></div>
+  <div class="modal-body">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"><span class="badge ${f.risk.toLowerCase()}">${f.risk}</span><span class="badge ${f.status.toLowerCase().replace(/ /g,'-')}">${f.status}</span>${f.in_poam?'<span class="badge poam">In POA&M</span>':''}</div>
+    <div class="form-row"><div class="form-group"><label>Risk</label><select id="ed-risk" ${dis}>${riskOpts}</select></div><div class="form-group"><label>Status</label><select id="ed-status" ${dis}>${statusOpts}</select></div></div>
+    <div class="form-row"><div class="form-group"><label>Owner</label><select id="ed-owner" ${dis}>${ownerOpts}</select></div><div class="form-group"><label>Due date</label><input type="date" id="ed-due" value="${f.due_date||''}" ${dis}></div></div>
+    <div class="form-group"><label>Affected systems / hosts</label><div style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:var(--text2);min-height:36px">${f.affected_hosts||'&mdash;'}</div></div>
+    <div class="form-group"><label>CVEs</label><div style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:#93c5fd;min-height:36px">${f.cves||'&mdash;'}</div></div>
+    <div class="form-group"><label>Description</label><textarea id="ed-desc" ${dis}>${f.description||''}</textarea></div>
+    <div class="form-group"><label>Remediation plan</label><textarea id="ed-rem" ${dis}>${f.remediation||''}</textarea></div>
+    <div class="form-group"><label>Evidence / closure notes</label><textarea id="ed-ev" ${dis}>${f.evidence||''}</textarea></div>
+    <div class="form-group">
+      <label>Evidence images <span style="font-size:10px;color:var(--text3)">(JPEG, PNG, GIF, WebP, or PDF (JPEG, PNG, GIF, WebP &mdash; click to enlarge)mdash; click to enlarge)</span></label>
+      <div class="evidence-grid" id="evidence-grid-${f.id}"></div>
+    </div>
+    <div class="form-row"><div class="form-group"><label>Finding type</label><select id="ed-isnew" ${dis}>${newOpts}</select></div><div class="form-group"><label>In POA&amp;M</label><select id="ed-poam" ${dis}>${poamOpts}</select></div></div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)"><div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Activity history</div>${hist}</div>
+  </div>
+  <div class="modal-footer">
+    ${canEdit&&isAdmin()?'<button class="btn sm danger" data-fid="'+f.id+'" onclick="deleteFinding(this)">Delete</button>':''}
+    <button class="btn sm" onclick="closeModal()">Close</button>
+    ${canEdit?'<button class="btn sm primary" onclick="saveFinding(\''+f.id+'\')">Save changes</button>':''}
+  </div>`);
+  loadEvidenceGrid(f.id);
+}
+
+function evidenceThumbSrc(fid, ef){
+  if(ef.mime_type==='application/pdf'){
+    const base=ef.filename.replace(/\.pdf$/,'');
+    return '/uploads/'+fid+'/'+base+'-page-01.png';
+  }
+  return '/uploads/'+fid+'/'+ef.filename;
+}
+
+function evidencePageUrls(fid, ef){
+  if(ef.mime_type!=='application/pdf')return ['/uploads/'+fid+'/'+ef.filename];
+  const base=ef.filename.replace(/\.pdf$/,'');
+  const urls=[];
+  for(let i=1;i<=(ef.page_count||1);i++){
+    urls.push('/uploads/'+fid+'/'+base+'-page-'+String(i).padStart(2,'0')+'.png');
+  }
+  return urls;
+}
+
+async function loadEvidenceGrid(fid){
+  const grid=document.getElementById('evidence-grid-'+fid);
+  if(!grid)return;
+  const files=await api('/api/findings/'+fid+'/evidence_files');
+  const canDel=isAdmin();
+  const canUp=!isAuditor();
+  let html='';
+  for(const ef of files){
+    const thumbSrc=evidenceThumbSrc(fid, ef);
+    const pages=evidencePageUrls(fid, ef);
+    const pagesJson=JSON.stringify(pages).replace(/"/g,'&quot;');
+    const isPdf=ef.mime_type==='application/pdf';
+    html+='<div class="evidence-thumb">'
+      +'<img src="'+thumbSrc+'" alt="'+ef.orig_name+'" data-pages="'+pagesJson+'" data-label="'+ef.orig_name+'" onclick="showLightboxMulti(this)">'
+      +(isPdf?'<div class="thumb-pdf-badge">PDF &middot; '+(ef.page_count||1)+'p</div>':'')
+      +'<div class="thumb-label">'+ef.orig_name+'</div>'
+      +(canDel?'<button class="thumb-del" data-fid="'+fid+'" data-fileid="'+ef.id+'" onclick="deleteEvidence(this)">&#10005;</button>':'')
+      +'</div>';
+  }
+  if(canUp){
+    html+='<div class="evidence-upload-btn" onclick="document.getElementById(\'ev-file-input-'+fid+'\').click()">'
+      +'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>'
+      +'<span>Add evidence</span>'
+      +'<input type="file" id="ev-file-input-'+fid+'" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.jpg,.jpeg,.png,.gif,.webp,.pdf" style="display:none" onchange="uploadEvidence(\''+fid+'\',this)">'
+      +'</div>';
+  }
+  grid.innerHTML=html;
+}
+
+async function uploadEvidence(fid, input){
+  const file=input.files[0];if(!file)return;
+  const form=new FormData();form.append('file',file);
+  const grid=document.getElementById('evidence-grid-'+fid);
+  const btn=grid.querySelector('.evidence-upload-btn');
+  if(btn)btn.innerHTML='<div class="spinner"></div>';
+  try{
+    const r=await fetch('/api/findings/'+fid+'/evidence_files',{method:'POST',body:form,credentials:'same-origin'});
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Upload failed');
+  }catch(e){alert('Upload failed: '+e.message);}
+  await loadEvidenceGrid(fid);
+}
+
+async function deleteEvidence(btn){
+  const fid=btn.dataset.fid, fileId=btn.dataset.fileid;
+  if(!confirm('Delete this evidence image permanently?'))return;
+  btn.textContent='...';
+  await api('/api/findings/'+fid+'/evidence_files/'+fileId,{method:'DELETE'});
+  await loadEvidenceGrid(fid);
+}
+
+function showLightbox(src, label){
+  const lb=document.createElement('div');
+  lb.className='lightbox-overlay';
+  lb.innerHTML='<img src="'+src+'" alt="'+label+'" title="'+label+'">';
+  lb.addEventListener('click',()=>lb.remove());
+  document.body.appendChild(lb);
+}
+
+function showLightboxMulti(imgEl){
+  const pages=JSON.parse(imgEl.dataset.pages);
+  const label=imgEl.dataset.label;
+  let idx=0;
+  const lb=document.createElement('div');
+  lb.className='lightbox-overlay';
+  const multi=pages.length>1;
+  function render(){
+    lb.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;gap:10px" onclick="event.stopPropagation()">'
+      +'<img src="'+pages[idx]+'" alt="'+label+'" title="'+label+'">'
+      +(multi?'<div style="display:flex;align-items:center;gap:16px;color:#fff;font-size:13px">'
+        +'<button class="btn sm" id="lb-prev" '+(idx===0?'disabled style="opacity:0.4"':'')+'>&larr; Prev</button>'
+        +'<span>'+label+' &middot; Page '+(idx+1)+' of '+pages.length+'</span>'
+        +'<button class="btn sm" id="lb-next" '+(idx===pages.length-1?'disabled style="opacity:0.4"':'')+'>Next &rarr;</button>'
+        +'</div>':'<div style="color:#fff;font-size:13px">'+label+'</div>')
+      +'</div>';
+    if(multi){
+      const prevBtn=lb.querySelector('#lb-prev'), nextBtn=lb.querySelector('#lb-next');
+      if(prevBtn)prevBtn.addEventListener('click',e=>{e.stopPropagation();if(idx>0){idx--;render();}});
+      if(nextBtn)nextBtn.addEventListener('click',e=>{e.stopPropagation();if(idx<pages.length-1){idx++;render();}});
+    }
+  }
+  render();
+  lb.addEventListener('click',()=>lb.remove());
+  document.body.appendChild(lb);
+}
+
+async function saveFinding(id){
+  await api('/api/findings/'+id,{method:'PUT',body:{risk:document.getElementById('ed-risk').value,status:document.getElementById('ed-status').value,owner:document.getElementById('ed-owner').value,due_date:document.getElementById('ed-due').value,description:document.getElementById('ed-desc').value,remediation:document.getElementById('ed-rem').value,evidence:document.getElementById('ed-ev').value,is_new:parseInt(document.getElementById('ed-isnew').value),in_poam:parseInt(document.getElementById('ed-poam').value)}});
+  closeModal();render();
+}
+
+async function deleteFinding(btn){
+  if(!confirm('Delete this finding permanently?'))return;
+  await api('/api/findings/'+btn.dataset.fid,{method:'DELETE'});closeModal();render();
+}
+
+async function openAddFinding(){
+  if(isAuditor())return;
+  const engagements=await api('/api/engagements');
+  let engOpts='',riskOpts='',statusOpts='',ownerOpts='',typeOpts='';
+  for(const e of engagements)engOpts+='<option value="'+e.id+'">'+e.name+'</option>';
+  engOpts+='<option value="">Manual entry</option>';
+  for(const r of RISK_LEVELS)riskOpts+='<option>'+r+'</option>';
+  for(const s of STATUSES)statusOpts+='<option>'+s+'</option>';
+  for(const s of STAFF)ownerOpts+='<option>'+s+'</option>';
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Add finding</span><button class="btn sm" onclick="closeModal()">X</button></div><div class="modal-body"><div class="form-group"><label>Title</label><input id="nf-title" placeholder="Short description"/></div><div class="form-row"><div class="form-group"><label>Risk</label><select id="nf-risk">'+riskOpts+'</select></div><div class="form-group"><label>Status</label><select id="nf-status">'+statusOpts+'</select></div></div><div class="form-row"><div class="form-group"><label>Owner</label><select id="nf-owner">'+ownerOpts+'</select></div><div class="form-group"><label>Due date</label><input type="date" id="nf-due"></div></div><div class="form-row"><div class="form-group"><label>Engagement</label><select id="nf-eng">'+engOpts+'</select></div><div class="form-group"><label>Finding type</label><select id="nf-isnew"><option value="1">New finding</option><option value="0">Existing/recurring</option></select></div></div><div class="form-group"><label>Description</label><textarea id="nf-desc" placeholder="Vulnerability description, CVEs..."></textarea></div><div class="form-group"><label>Include in POA&amp;M</label><select id="nf-poam"><option value="0">No</option><option value="1">Yes</option></select></div></div><div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm primary" onclick="submitNewFinding()">Add finding</button></div>');
+}
+
+async function submitNewFinding(){
+  const title=document.getElementById('nf-title').value.trim();
+  if(!title){alert('Enter a title.');return;}
+  await api('/api/findings',{method:'POST',body:{title,risk:document.getElementById('nf-risk').value,status:document.getElementById('nf-status').value,owner:document.getElementById('nf-owner').value,due_date:document.getElementById('nf-due').value,engagement_id:document.getElementById('nf-eng').value||null,is_new:parseInt(document.getElementById('nf-isnew').value),description:document.getElementById('nf-desc').value,in_poam:parseInt(document.getElementById('nf-poam').value)}});
+  closeModal();render();
+}
+
+function renderReview(c){
+  const findings=state.pendingFindings||[];
+  const engId=state.pendingEngId;
+  if(!findings.length){nav('upload');return;}
+  let rows='';
+  findings.forEach(function(f,i){
+    rows+='<tr><td><input type="checkbox" checked id="imp-'+i+'" style="width:auto"></td><td style="font-size:13px">'+f.title+'</td><td><span class="badge '+f.risk.toLowerCase()+'">'+f.risk+'</span></td><td style="font-size:12px;color:var(--text2)">'+f.description.slice(0,80)+'...</td></tr>';
+  });
+  c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:13px;color:var(--text2)">'+findings.length+' findings extracted — review before importing</span><div style="display:flex;gap:8px"><button class="btn sm" onclick="nav(&apos;upload&apos;)">Cancel</button><button class="btn sm primary" id="confirm-import-btn">Import selected</button></div></div><div class="card"><table><thead><tr><th style="width:40px"></th><th>Finding</th><th>Risk</th><th>Description</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  document.getElementById('confirm-import-btn').addEventListener('click', async function(){
+    for(let i=0;i<findings.length;i++){
+      const cb=document.getElementById('imp-'+i);
+      if(!cb||!cb.checked)continue;
+      await api('/api/findings',{method:'POST',body:{...findings[i],engagement_id:engId}});
+    }
+    state.pendingFindings=null;
+    state.pendingEngId=null;
+    nav('findings');
+  });
+}
+
+function logout(){
+  fetch('/api/logout',{method:'POST',credentials:'same-origin'})
+    .catch(()=>{})
+    .finally(()=>{window.location.href='/login';});
+}
+
+function openChangePassword(){
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Change password</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+    +'<div class="modal-body">'
+    +'<div class="form-group"><label>Current password</label><input type="password" id="cp-current" autocomplete="current-password"/></div>'
+    +'<div class="form-group"><label>New password (min 8 chars)</label><input type="password" id="cp-new" autocomplete="new-password"/></div>'
+    +'<div class="form-group"><label>Confirm new password</label><input type="password" id="cp-confirm" autocomplete="new-password"/></div>'
+    +'</div>'
+    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm primary" onclick="submitChangePassword()">Update password</button></div>');
+}
+
+async function submitChangePassword(){
+  const cur=document.getElementById('cp-current').value;
+  const nw=document.getElementById('cp-new').value;
+  const cf=document.getElementById('cp-confirm').value;
+  if(!cur||!nw){alert('Fill in all fields.');return;}
+  if(nw.length<8){alert('New password must be at least 8 characters.');return;}
+  if(nw!==cf){alert('New passwords do not match.');return;}
+  try{
+    await api('/api/change_password',{method:'POST',body:{current_password:cur,new_password:nw}});
+    closeModal();
+    alert('Password updated successfully.');
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function renderChangelog(c){
+  let log=[];
+  try{log=await api('/api/changelog');}catch(e){log=[];}
+  const typeIcon={
+    add:'<span style="color:#22c55e;font-weight:600">+</span>',
+    fix:'<span style="color:#f59e0b;font-weight:600">~</span>',
+    remove:'<span style="color:#ef4444;font-weight:600">-</span>'
+  };
+  let html='<div style="max-width:680px">';
+  for(const release of log){
+    let items='';
+    for(const ch of release.changes){
+      items+='<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px">'
+        +'<span style="flex-shrink:0;width:16px;text-align:center">'+(typeIcon[ch.type]||typeIcon.add)+'</span>'
+        +'<span style="color:var(--text2)">'+ch.text+'</span></div>';
+    }
+    html+='<div class="card" style="margin-bottom:16px">'
+      +'<div class="card-header" style="display:flex;align-items:center;gap:12px">'
+      +'<span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--purple)">v'+release.version+'</span>'
+      +'<span style="font-size:13px;font-weight:500">'+release.label+'</span>'
+      +'<span style="font-size:11px;color:var(--text3);margin-left:auto">'+release.date+'</span>'
+      +'</div>'
+      +'<div class="card-body" style="padding:8px 16px">'+items+'</div>'
+      +'</div>';
+  }
+  html+='<div style="margin-top:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;font-size:12px;color:var(--text2)">'
+    +'<div style="font-weight:600;margin-bottom:8px;color:var(--text1)">How to add a changelog entry</div>'
+    +'<div style="font-family:var(--mono);background:var(--bg3);padding:10px 12px;border-radius:6px;font-size:11px;line-height:1.8;margin-bottom:8px">'
+    +'sudo python3 /opt/sectrack/tools/bump_version.py</div>'
+    +'<div style="color:var(--text3);line-height:1.7">The script will prompt for:<br>'
+    +'&nbsp;&nbsp;<strong>Bump type:</strong> 1) Patch (3.5.0 → 3.5.1) &nbsp; 2) Minor (3.5.0 → 3.6.0) &nbsp; 3) Major (3.5.0 → 4.0.0)<br>'
+    +'&nbsp;&nbsp;<strong>Label:</strong> Short description of the release (e.g. "Bug fixes and performance")<br>'
+    +'&nbsp;&nbsp;<strong>Changes:</strong> Enter each change one per line &mdash; prefix with <code>+</code> for additions, <code>~</code> for fixes, <code>-</code> for removals. Press Enter twice when done.'
+    +'</div>'
+    +'</div></div>';
+  c.innerHTML=html;
+}
+
+
+async function renderUpdates(c){
+  if(!isAdmin()){c.innerHTML='<div class="empty"><p>Admin access required.</p></div>';return;}
+  let status={};
+  try{status=await api('/api/patch-status');}catch(e){status={};}
+  let approvals=[];
+  try{approvals=await api('/api/patch-approvals');}catch(e){approvals=[];}
+
+  const count=status.package_count||0;
+  const checkedAt=status.checked_at?new Date(status.checked_at).toLocaleString():'Never';
+  const rebootReq=status.reboot_required;
+  const masterAdmin=isMasterAdmin();
+
+  let pkgRows='';
+  for(const p of (status.packages||[])){
+    const isKernel=/^(kernel|systemd|glibc)/i.test(p.name);
+    pkgRows+='<tr><td style="font-family:var(--mono);font-size:12px;font-weight:500">'+escHtml(p.name)+'</td>'
+      +'<td style="font-size:12px;color:var(--text2)">'+escHtml(p.version)+'</td>'
+      +'<td>'+(isKernel?'<span class="badge high">Reboot required</span>':'<span class="badge informational">Standard</span>')+'</td></tr>';
+  }
+
+  let histRows='';
+  for(const a of approvals){
+    const statusBadge=a.status==='approved_dry_run'?'<span class="badge informational">Dry run generated</span>':
+                       a.status==='completed'?'<span class="badge low">Completed</span>':
+                       '<span class="badge medium">'+a.status+'</span>';
+    histRows+='<tr><td style="font-size:12px">'+(a.requested_at||'').split('.')[0].replace('T',' ')+'</td>'
+      +'<td style="font-size:12px">'+escHtml(a.requested_by)+'</td>'
+      +'<td style="font-size:12px">'+a.package_count+' packages</td>'
+      +'<td>'+statusBadge+'</td></tr>';
+  }
+
+  c.innerHTML=`
+  <div class="metrics">
+    <div class="metric"><div class="label">Packages pending</div><div class="value" style="${count>0?'color:#f59e0b':''}">${count}</div></div>
+    <div class="metric"><div class="label">Reboot required</div><div class="value" style="${rebootReq?'color:#ef4444':''}">${rebootReq?'Yes':'No'}</div></div>
+    <div class="metric"><div class="label">Last checked</div><div class="value" style="font-size:15px">${checkedAt}</div></div>
+    <div class="metric"><div class="label">Current release</div><div class="value" style="font-size:15px;font-family:var(--mono)">${status.current_release||'&mdash;'}</div></div>
+  </div>
+
+  ${count===0?'<div class="card"><div class="card-body"><div class="empty"><p>No pending updates. System is up to date as of the last check.</p></div></div></div>':`
+  <div class="card">
+    <div class="card-header">
+      <span class="card-header-title">Pending Updates</span>
+      <button class="btn sm" onclick="refreshPatchStatus()" id="refresh-patch-btn">Refresh now</button>
+      ${masterAdmin?'<button class="btn sm primary" onclick="approveUpdates()">Generate patch command</button>':'<span style="font-size:11px;color:var(--text3)">Master admin required to approve</span>'}
+    </div>
+    <table><thead><tr><th>Package</th><th>Version</th><th>Impact</th></tr></thead><tbody>${pkgRows}</tbody></table>
+  </div>`}
+
+  <div class="info-box">
+    <strong>How patching works:</strong> This server checks daily for available OS security updates (Amazon Linux 2023). Approving here does <strong>not</strong> apply patches automatically &mdash; it generates the exact command for an administrator to run manually via SSH, and logs the approval for audit purposes. ${rebootReq?'<br><br><strong style="color:#f59e0b">Note:</strong> A kernel update is pending. The server will need a reboot after patching to fully apply it.':''}
+  </div>
+
+  ${approvals.length?`<div class="card"><div class="card-header"><span class="card-header-title">Approval History</span></div><table><thead><tr><th>Date</th><th>Approved by</th><th>Scope</th><th>Status</th></tr></thead><tbody>${histRows}</tbody></table></div>`:''}
+  `;
+}
+
+async function refreshPatchStatus(){
+  const btn=document.getElementById('refresh-patch-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Checking...';}
+  try{
+    await api('/api/patch-status/refresh',{method:'POST'});
+    render();
+  }catch(e){
+    alert('Refresh failed: '+e.message);
+    if(btn){btn.disabled=false;btn.textContent='Refresh now';}
+  }
+}
+
+async function approveUpdates(){
+  if(!confirm('Generate a patch command for the currently pending updates? This will log an approval record but will NOT apply any patches automatically.'))return;
+  try{
+    const res=await api('/api/patch-approvals',{method:'POST'});
+    const releaseFlag=res.latest_release?(' --releasever='+res.latest_release):'';
+    const cmd='sudo dnf upgrade -y'+releaseFlag+(res.reboot_required?'  # NOTE: reboot required after this completes':'');
+    showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Patch approved &mdash; '+res.package_count+' packages</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+      +'<div class="modal-body">'
+      +'<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Run the following command on the server via SSH to apply these updates:</p>'
+      +'<div class="readonly-field" style="user-select:all;cursor:text">'+escHtml(cmd)+'</div>'
+      +(res.reboot_required?'<div style="margin-top:12px;padding:10px;background:#3f2a0a;border-radius:var(--radius);font-size:12px;color:#fcd34d">A kernel update is included. After patching completes, run <code>sudo reboot</code> at a planned maintenance time.</div>':'')
+      +'<p style="font-size:11px;color:var(--text3);margin-top:14px">This approval has been logged in the audit history below.</p>'
+      +'</div>'
+      +'<div class="modal-footer"><button class="btn sm primary" onclick="closeModal();render()">Done</button></div>');
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function renderArchived(c){
+  if(!isAdmin()){c.innerHTML='<div class="empty"><p>Admin access required.</p></div>';return;}
+  const masterAdmin=isMasterAdmin();
+  const tab=state.archiveTab||'engagements';
+
+  const tabsHtml='<div class="filters">'
+    +'<button class="filter-chip '+(tab==='engagements'?'active':'')+'" onclick="setArchiveTab(\'engagements\')">Pen Test Engagements</button>'
+    +'<button class="filter-chip '+(tab==='vulnerabilities'?'active':'')+'" onclick="setArchiveTab(\'vulnerabilities\')">Vulnerabilities</button>'
+    +'</div>';
+
+  if(tab==='engagements'){
+    const engagements=await api('/api/engagements?status=archived');
+    let rows='';
+    for(const e of engagements){
+      rows+='<tr>'
+        +'<td style="font-weight:500">'+e.name+'</td>'
+        +'<td><span class="badge informational">'+e.type+'</span></td>'
+        +'<td style="color:var(--text2)">'+e.eng_date+'</td>'
+        +'<td>'+e.finding_count+'</td>'
+        +'<td style="display:flex;gap:6px">'
+        +'<button class="btn sm" data-eid="'+e.id+'" onclick="unarchiveEngagement(this)">Unarchive</button>'
+        +(masterAdmin?'<button class="btn sm danger" data-eid="'+e.id+'" data-ename="'+e.name.replace(/"/g,'&quot;')+'" onclick="openDeleteEngagement(this)">Delete</button>':'')
+        +'</td></tr>';
+    }
+    c.innerHTML=tabsHtml+`<div class="info-box">Archived engagements are hidden from the Dashboard, Findings, and POA&amp;M views, but all data &mdash; findings, history, and evidence &mdash; is fully preserved. ${masterAdmin?'As a master admin, you can also permanently delete an archived engagement if it was uploaded by mistake.':''}</div>
+    <div class="card"><div class="card-header"><span class="card-header-title">Archived Engagements</span><span style="font-size:12px;color:var(--text3)">${engagements.length} archived</span></div>
+    <table><thead><tr><th>Engagement</th><th>Type</th><th>Date</th><th>Findings</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">No archived engagements.</td></tr>'}</tbody></table></div>`;
+  } else {
+    const vulns=await api('/api/vuln/findings?archived=true');
+    let rows='';
+    for(const v of vulns){
+      rows+='<tr>'
+        +'<td><span class="badge '+v.severity.toLowerCase()+'">'+v.severity+'</span></td>'
+        +'<td style="font-weight:500">'+v.plugin_name+'</td>'
+        +'<td style="font-family:var(--mono);font-size:11px;color:var(--text3)">'+v.plugin_id+'</td>'
+        +'<td>'+v.host_count+' hosts</td>'
+        +'<td style="display:flex;gap:6px">'
+        +'<button class="btn sm" data-vid="'+v.id+'" onclick="unarchiveVulnFinding(this)">Unarchive</button>'
+        +(masterAdmin?'<button class="btn sm danger" onclick="openDeleteVuln(\''+v.id+'\',\''+v.plugin_name.replace(/'/g,"\\'")+'\')">Delete</button>':'')
+        +'</td></tr>';
+    }
+    c.innerHTML=tabsHtml+`<div class="info-box">Archived vulnerabilities are hidden from the active Vulnerabilities view, but all data &mdash; hosts, history, and remediation notes &mdash; is fully preserved. ${masterAdmin?'As a master admin, you can also permanently delete an archived vulnerability if it was added by mistake.':''}</div>
+    <div class="card"><div class="card-header"><span class="card-header-title">Archived Vulnerabilities</span><span style="font-size:12px;color:var(--text3)">${vulns.length} archived</span></div>
+    <table><thead><tr><th>Severity</th><th>Vulnerability</th><th>Plugin ID</th><th>Hosts</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text3)">No archived vulnerabilities.</td></tr>'}</tbody></table></div>`;
+  }
+}
+
+function setArchiveTab(tab){
+  state.archiveTab=tab;
+  render();
+}
+
+async function renderSettings(c){
+  if(!isAdmin()){c.innerHTML='<div class="empty"><p>Admin access required.</p></div>';return;}
+  const settings=await api('/api/settings');
+  const masterAdmin=isMasterAdmin();
+
+  let rows='';
+  for(const s of settings){
+    const canEdit=masterAdmin||(s.min_role==='admin');
+    const dis=canEdit?'':'disabled';
+    let input='';
+    if(s.type==='bool'){
+      input='<select id="setting-'+s.key+'" '+dis+'>'
+        +'<option value="true" '+(s.value==='true'?'selected':'')+'>Enabled</option>'
+        +'<option value="false" '+(s.value==='false'?'selected':'')+'>Disabled</option>'
+        +'</select>';
+    } else {
+      input='<input type="'+(s.type==='number'?'number':'text')+'" id="setting-'+s.key+'" value="'+s.value+'" '+dis+' style="max-width:200px">';
+    }
+    rows+='<tr>'
+      +'<td><div style="font-weight:500;font-size:13px">'+s.label+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+s.description+'</div></td>'
+      +'<td>'+input+'</td>'
+      +'<td><span style="font-size:10px;background:'+(s.min_role==='master_admin'?'#1e1240':'#0a2a15')+';color:'+(s.min_role==='master_admin'?'#c4b5fd':'#86efac')+';padding:2px 7px;border-radius:100px">'+s.min_role.replace('_',' ')+'</span></td>'
+      +'<td>'+(canEdit?'<button class="btn sm primary" data-key="'+s.key+'" onclick="saveSetting(this)">Save</button>':'')+'</td>'
+      +'</tr>';
+  }
+
+  c.innerHTML='<div class="info-box">Settings are applied immediately and persist across server restarts. Changes to session timeout take effect on the next page load. Master admin settings are only editable by master admins.</div>'
+    +'<div class="card"><div class="card-header"><span class="card-header-title">Application Settings</span></div>'
+    +'<table><thead><tr><th>Setting</th><th>Value</th><th>Required Role</th><th></th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table></div>';
+}
+
+async function saveSetting(btn){
+  const key=btn.dataset.key;
+  const input=document.getElementById('setting-'+key);
+  if(!input)return;
+  try{
+    await api('/api/settings/'+key,{method:'PUT',body:{value:input.value}});
+    btn.textContent='Saved!';
+    btn.style.background='#16a34a';
+    setTimeout(()=>{btn.textContent='Save';btn.style.background='';},2000);
+    // Reinit idle timeout if session settings changed
+    if(key==='session_timeout_minutes'||key==='session_warning_minutes'){
+      const settings=await api('/api/settings');
+      const t=settings.find(s=>s.key==='session_timeout_minutes');
+      const w=settings.find(s=>s.key==='session_warning_minutes');
+      initIdleTimeout(t?parseInt(t.value):60, w?parseInt(w.value):10);
+    }
+  }catch(e){alert('Error: '+e.message);}
+}
+
+// ---------- Vulnerability Tracker ----------
+const VULN_SEVERITY_COLORS={Critical:'#ef4444',High:'#f97316',Medium:'#f59e0b',Low:'#3b82f6',Informational:'#64748b'};
+
+function renderVulnTrendChart(trend, period){
+  const periodBtns=['weekly','monthly','yearly'].map(p=>
+    '<button class="filter-chip '+(period===p?'active':'')+'" onclick="setVulnTrendPeriod(\''+p+'\')">'+p.charAt(0).toUpperCase()+p.slice(1)+'</button>'
+  ).join('');
+
+  if(!trend || !trend.points || trend.points.length===0){
+    return '<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Progress Over Time</span><div class="filters" style="padding:0">'+periodBtns+'</div></div>'
+      +'<div class="card-body"><div class="empty" style="padding:24px"><p>Not enough scan history yet. Upload scans over time to see your progress trend.</p></div></div></div>';
+  }
+
+  const pts=trend.points;
+  const W=760, H=220, padL=40, padR=20, padT=16, padB=30;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+
+  const maxVal=Math.max(1, ...pts.map(p=>Math.max(p.total_findings, p.resolved_total)));
+  const xStep=pts.length>1?plotW/(pts.length-1):0;
+
+  function xFor(i){return padL+i*xStep;}
+  function yFor(v){return padT+plotH-(v/maxVal*plotH);}
+
+  function pathFor(key){
+    return pts.map((p,i)=>(i===0?'M':'L')+xFor(i)+','+yFor(p[key])).join(' ');
+  }
+
+  const totalPath=pathFor('total_findings');
+  const resolvedPath=pathFor('resolved_total');
+
+  let dots='';
+  pts.forEach((p,i)=>{
+    dots+='<circle cx="'+xFor(i)+'" cy="'+yFor(p.total_findings)+'" r="3" fill="#f97316"><title>'+p.period+': '+p.total_findings+' total</title></circle>';
+    dots+='<circle cx="'+xFor(i)+'" cy="'+yFor(p.resolved_total)+'" r="3" fill="#22c55e"><title>'+p.period+': '+p.resolved_total+' resolved</title></circle>';
+  });
+
+  let xLabels='';
+  const labelStep=Math.max(1, Math.ceil(pts.length/6));
+  pts.forEach((p,i)=>{
+    if(i%labelStep===0 || i===pts.length-1){
+      xLabels+='<text x="'+xFor(i)+'" y="'+(H-8)+'" font-size="10" fill="var(--text3)" text-anchor="middle">'+p.period+'</text>';
+    }
+  });
+
+  const gridLines=[0,0.25,0.5,0.75,1].map(f=>{
+    const y=padT+plotH*(1-f);
+    const val=Math.round(maxVal*f);
+    return '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="var(--border)" stroke-width="1"/>'
+      +'<text x="'+(padL-8)+'" y="'+(y+3)+'" font-size="10" fill="var(--text3)" text-anchor="end">'+val+'</text>';
+  }).join('');
+
+  const svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;max-height:240px">'
+    +gridLines
+    +'<path d="'+totalPath+'" fill="none" stroke="#f97316" stroke-width="2"/>'
+    +'<path d="'+resolvedPath+'" fill="none" stroke="#22c55e" stroke-width="2"/>'
+    +dots+xLabels
+    +'</svg>';
+
+  let summaryHtml='';
+  if(trend.summary){
+    const s=trend.summary;
+    const pctChangeColor=s.pct_change>=0?'#86efac':'#fca5a5';
+    const pctChangeSign=s.pct_change>=0?'+':'';
+    summaryHtml='<div style="display:flex;gap:24px;padding:12px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--text2)">'
+      +'<div>Completion: <strong>'+s.start_pct+'%</strong> &rarr; <strong>'+s.end_pct+'%</strong> <span style="color:'+pctChangeColor+'">('+pctChangeSign+s.pct_change+' pts)</span></div>'
+      +'<div>Total tracked: <strong>'+s.start_total+'</strong> &rarr; <strong>'+s.end_total+'</strong></div>'
+      +'<div>Resolved: <strong>'+s.start_resolved+'</strong> &rarr; <strong>'+s.end_resolved+'</strong></div>'
+      +'</div>';
+  }
+
+  return '<div class="card" style="margin-top:14px">'
+    +'<div class="card-header"><span class="card-header-title">Progress Over Time</span><div class="filters" style="padding:0">'+periodBtns+'</div></div>'
+    +'<div class="card-body">'
+    +'<div style="display:flex;gap:16px;margin-bottom:8px;font-size:11px;color:var(--text2)"><span><span style="display:inline-block;width:10px;height:10px;background:#f97316;border-radius:2px;margin-right:4px"></span>Total tracked</span><span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;margin-right:4px"></span>Resolved/closed</span></div>'
+    +svg
+    +'</div>'
+    +summaryHtml
+    +'</div>';
+}
+
+function setVulnTrendPeriod(period){
+  state.vulnTrendPeriod=period;
+  render();
+}
+
+
+async function renderVulnerabilities(c){
+  const stats=await api('/api/vuln/stats');
+  const findings=await api('/api/vuln/findings'+(state.vulnFilterSev&&state.vulnFilterSev!=='All'?'?severity='+state.vulnFilterSev:''));
+  const trendPeriod=state.vulnTrendPeriod||'weekly';
+  let trend=null;
+  try{trend=await api('/api/vuln/trend?period='+trendPeriod);}catch(e){trend=null;}
+
+  let sevCards='';
+  for(const s of ['Critical','High','Medium','Low','Informational']){
+    const total=stats.by_severity[s]||0;
+    const open=stats.open_by_severity[s]||0;
+    sevCards+='<div class="metric" style="cursor:pointer" onclick="setVulnSevFilter(\''+s+'\')">'
+      +'<div class="label">'+s+'</div>'
+      +'<div class="value" style="color:'+VULN_SEVERITY_COLORS[s]+'">'+total+'</div>'
+      +'<div class="sub">'+open+' open</div></div>';
+  }
+
+  const masterAdmin=isMasterAdmin();
+  let scanRows='';
+  for(const sc of (stats.scans||[]).slice(-8).reverse()){
+    scanRows+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">'
+      +'<div><span>'+sc.scan_date+'</span> <span style="color:var(--text3)">'+sc.filename+'</span> <span style="color:var(--purple);font-size:11px">('+(sc.scope||'Unspecified')+')</span></div>'
+      +(masterAdmin?'<button class="btn sm danger" style="padding:2px 8px;font-size:11px" onclick="openDeleteVulnScan('+sc.id+',\''+sc.filename.replace(/'/g,"\\'")+'\')">Delete</button>':'')
+      +'</div>';
+  }
+
+  let rows='';
+  if(!findings.length){rows='<tr><td colspan="6"><div class="empty"><p>No vulnerabilities found. Upload a Nessus scan to get started.</p></div></td></tr>';}
+  for(const f of findings){
+    rows+='<tr onclick="openVulnDetail(\''+f.id+'\')" style="cursor:pointer">'
+      +'<td><span class="badge '+f.severity.toLowerCase()+'">'+f.severity+'</span></td>'
+      +'<td style="font-weight:500;max-width:280px">'+f.plugin_name+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px;color:var(--text3)">'+f.plugin_id+'</td>'
+      +'<td>'+f.host_count+' hosts</td>'
+      +'<td><span class="badge '+f.status.toLowerCase().replace(/ /g,'-')+'">'+f.status+'</span></td>'
+      +'<td style="font-size:12px;color:var(--text2)">'+(f.owner||'Unassigned')+'</td>'
+      +'<td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(f.last_scope||'')+'">'+(f.last_scope||'&mdash;')+'</td>'
+      +'</tr>';
+  }
+
+  const canUpload=!isAuditor();
+
+  const trendHtml=renderVulnTrendChart(trend, trendPeriod);
+  c.innerHTML=`<div class="metrics">${sevCards}</div>
+  ${trendHtml}
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-top:14px">
+    <div class="card"><div class="card-header"><span class="card-header-title">Vulnerabilities</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn sm" onclick="nav('vulnhosts')">View by host</button>
+        ${isAdmin()?'<button class="btn sm" onclick="openManageScopes()">Manage scopes</button>':''}
+        ${canUpload?'<button class="btn sm primary" onclick="openVulnUpload()">Upload Nessus scan</button>':''}
+      </div>
+    </div>
+    <div class="filters" style="padding:10px 16px 0">
+      ${['All','Critical','High','Medium','Low','Informational'].map(s=>'<button class="filter-chip '+(((state.vulnFilterSev||'All')===s)?'active':'')+'" onclick="setVulnSevFilter(\''+s+'\')">'+s+'</button>').join('')}
+    </div>
+    <table><thead><tr><th>Severity</th><th>Vulnerability</th><th>Plugin ID</th><th>Hosts</th><th>Status</th><th>Owner</th><th>Scope</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>
+    <div class="card"><div class="card-header"><span class="card-header-title">Scan History</span><span style="font-size:12px;color:var(--text3)">${stats.scan_count} scans</span></div>
+    <div class="card-body" style="padding:8px 16px">${scanRows||'<div class="empty" style="padding:20px"><p>No scans uploaded yet.</p></div>'}</div>
+    <div class="card-body" style="padding:12px 16px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;color:var(--text2)"><strong>${stats.host_count}</strong> unique hosts scanned</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px"><strong>${stats.resolved}</strong> of ${stats.total} resolved/patched</div>
+    </div>
+    </div>
+  </div>`;
+}
+
+function setVulnSevFilter(sev){
+  state.vulnFilterSev=sev;
+  render();
+}
+
+function openVulnDetail(vid){
+  state.view='vulndetail';
+  state.currentVulnId=vid;
+  render();
+}
+
+async function renderVulnDetail(c){
+  const vid=state.currentVulnId;
+  const v=await api('/api/vuln/findings/'+vid);
+
+  let hostRows='';
+  for(const h of v.hosts){
+    hostRows+='<tr><td style="font-family:var(--mono);font-size:12px">'+h.host_ip+'</td>'
+      +'<td style="font-size:12px">'+(h.hostname||'&mdash;')+'</td>'
+      +'<td style="font-size:12px">'+(h.port||'&mdash;')+'/'+(h.protocol||'')+'</td>'
+      +'<td style="font-size:11px;color:var(--text3)">'+(h.last_seen||'').split(' ')[0]+'</td></tr>';
+  }
+
+  let actRows='';
+  for(const a of v.activity){
+    actRows+='<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-text">'+a.action+'<br><span style="font-size:11px;color:var(--text3)">'+(a.ts||'').split(' ')[0]+' &middot; '+a.actor+'</span></div></div>';
+  }
+
+  const statusOpts=['Open','In Progress','Likely Resolved','Resolved','Patched','Risk Accepted','False Positive','Compensating Control'].map(s=>'<option value="'+s+'" '+(v.status===s?'selected':'')+'>'+s+'</option>').join('');
+
+  c.innerHTML=`<button class="btn sm" onclick="nav('vulnerabilities')" style="margin-bottom:14px">&larr; Back to Vulnerabilities</button>
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px">
+    <div>
+      <div class="card"><div class="card-header">
+        <span class="badge ${v.severity.toLowerCase()}">${v.severity}</span>
+        <span class="card-header-title" style="margin-left:8px">${v.plugin_name}</span>
+      </div>
+      <div class="card-body">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Plugin ID: <span style="font-family:var(--mono)">${v.plugin_id}</span> &middot; ${v.host_count} hosts affected &middot; First seen ${(v.first_seen||'').split(' ')[0]} &middot; Last seen ${(v.last_seen||'').split(' ')[0]}</div>
+        <div class="form-group"><label>Description</label><div style="font-size:13px;color:var(--text2);white-space:pre-wrap">${v.description||'&mdash;'}</div></div>
+        <div class="form-group"><label>Solution</label><div style="font-size:13px;color:var(--text2);white-space:pre-wrap">${v.solution||'&mdash;'}</div></div>
+        ${v.cves?'<div class="form-group"><label>CVEs</label><div style="font-size:12px;font-family:var(--mono)">'+v.cves+'</div></div>':''}
+        <div class="form-row">
+          <div class="form-group"><label>Status</label><select id="vd-status">${statusOpts}</select></div>
+          <div class="form-group"><label>Owner</label><input id="vd-owner" value="${v.owner||''}"></div>
+        </div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:12px">
+          <strong style="color:var(--text2)">How status updates on rescan:</strong><br>
+          &bull; <strong>Open / In Progress</strong> &mdash; stays as-is until you change it, or auto-resolves if the scanner stops seeing it anywhere.<br>
+          &bull; <strong>Resolved / Patched</strong> &mdash; if a later scan detects this again, it automatically reverts to Open for review (the scan is treated as ground truth).<br>
+          &bull; <strong>Likely Resolved</strong> &mdash; set automatically when no host still shows this. Reverts to Open if it reappears.<br>
+          &bull; <strong>Risk Accepted / False Positive / Compensating Control</strong> &mdash; these are your decisions and are never changed automatically, even if the scanner keeps detecting it.<br>
+          All of the above except Open and In Progress count as "resolved" on dashboards and completion percentages.
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Due date</label><input type="date" id="vd-due" value="${v.due_date||''}"></div>
+        </div>
+        <div class="form-group"><label>Remediation notes</label><textarea id="vd-remediation" rows="3">${v.remediation||''}</textarea></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn primary" onclick="saveVulnDetail('${vid}')">Save changes</button>
+          ${isAdmin()?`<button class="btn" onclick="archiveVulnFinding('${vid}')">Archive</button>`:''}
+          ${isMasterAdmin()?`<button class="btn danger" onclick="openDeleteVuln('${vid}','${v.plugin_name.replace(/'/g,"\\'")}')">Delete</button>`:''}
+        </div>
+      </div></div>
+      <div class="card"><div class="card-header"><span class="card-header-title">Affected Hosts</span></div>
+      <table><thead><tr><th>IP</th><th>Hostname</th><th>Port/Proto</th><th>Last seen</th></tr></thead><tbody>${hostRows}</tbody></table></div>
+    </div>
+    <div class="card"><div class="card-header"><span class="card-header-title">Activity</span></div><div class="card-body" style="padding:12px 16px">${actRows||'<p style="font-size:12px;color:var(--text3)">No activity yet.</p>'}</div></div>
+  </div>`;
+}
+
+async function saveVulnDetail(vid){
+  try{
+    await api('/api/vuln/findings/'+vid,{method:'PUT',body:{
+      status:document.getElementById('vd-status').value,
+      owner:document.getElementById('vd-owner').value,
+      due_date:document.getElementById('vd-due').value,
+      remediation:document.getElementById('vd-remediation').value
+    }});
+    render();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function archiveVulnFinding(vid){
+  if(!confirm('Archive this vulnerability? It will be hidden from the active list but all data is preserved and can be restored anytime.'))return;
+  await api('/api/vuln/findings/'+vid+'/archive',{method:'POST'});
+  nav('vulnerabilities');
+}
+
+async function unarchiveVulnFinding(btn){
+  const vid=btn.dataset.vid;
+  await api('/api/vuln/findings/'+vid+'/unarchive',{method:'POST'});
+  render();
+}
+
+let _pendingDeleteVuln=null;
+function openDeleteVuln(vid,name){
+  _pendingDeleteVuln={vid,name};
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500;color:#ef4444">Permanently delete vulnerability</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+    +'<div class="modal-body">'
+    +'<div style="background:#3f0f0f;border:1px solid #b91c1c;border-radius:var(--radius);padding:12px 14px;font-size:13px;color:#fca5a5;margin-bottom:16px;line-height:1.6">'
+    +'<strong>This cannot be undone.</strong> Deleting "'+name+'" will permanently remove it, all affected host records, and its full activity history. If you want to keep this data but get it out of the way, use <strong>Archive</strong> instead.'
+    +'</div>'
+    +'<div class="form-group"><label>Type the vulnerability name to confirm: <strong>'+name+'</strong></label><input type="text" id="del-vuln-confirm" placeholder="'+name+'"></div>'
+    +'</div>'
+    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm danger" onclick="confirmDeleteVuln()">Permanently delete</button></div>');
+}
+
+async function confirmDeleteVuln(){
+  if(!_pendingDeleteVuln)return;
+  const {vid,name}=_pendingDeleteVuln;
+  const typed=document.getElementById('del-vuln-confirm').value.trim();
+  if(typed!==name){alert('The name you typed does not match. Deletion cancelled.');return;}
+  try{
+    await api('/api/vuln/findings/'+vid,{method:'DELETE',body:{confirm_name:typed}});
+    _pendingDeleteVuln=null;
+    closeModal();
+    nav('vulnerabilities');
+  }catch(e){alert('Error: '+e.message);}
+}
+
+
+async function renderVulnHosts(c){
+  const hosts=await api('/api/vuln/hosts');
+  let rows='';
+  for(const h of hosts){
+    rows+='<tr onclick="openVulnHostDetail(\''+h.host_ip+'\')" style="cursor:pointer">'
+      +'<td style="font-family:var(--mono);font-size:12px">'+h.host_ip+'</td>'
+      +'<td style="font-size:12px">'+(h.hostname||'&mdash;')+'</td>'
+      +'<td>'+h.vuln_count+' vulnerabilities</td>'
+      +'<td style="font-size:11px;color:var(--text3)">'+(h.last_seen||'').split(' ')[0]+'</td></tr>';
+  }
+  c.innerHTML=`<button class="btn sm" onclick="nav('vulnerabilities')" style="margin-bottom:14px">&larr; Back to Vulnerabilities</button>
+  <div class="card"><div class="card-header"><span class="card-header-title">Hosts</span><span style="font-size:12px;color:var(--text3)">${hosts.length} hosts</span></div>
+  <table><thead><tr><th>IP Address</th><th>Hostname</th><th>Vulnerabilities</th><th>Last seen</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function openVulnHostDetail(ip){
+  state.view='vulnhostdetail';
+  state.currentVulnHost=ip;
+  render();
+}
+
+async function renderVulnHostDetail(c){
+  const ip=state.currentVulnHost;
+  const vulns=await api('/api/vuln/hosts/'+encodeURIComponent(ip));
+  let rows='';
+  for(const v of vulns){
+    rows+='<tr onclick="openVulnDetail(\''+v.id+'\')" style="cursor:pointer">'
+      +'<td><span class="badge '+v.severity.toLowerCase()+'">'+v.severity+'</span></td>'
+      +'<td style="font-weight:500">'+v.plugin_name+'</td>'
+      +'<td style="font-size:12px">'+(v.port||'&mdash;')+'/'+(v.protocol||'')+'</td>'
+      +'<td><span class="badge '+v.status.toLowerCase().replace(/ /g,'-')+'">'+v.status+'</span></td></tr>';
+  }
+  c.innerHTML=`<button class="btn sm" onclick="nav('vulnhosts')" style="margin-bottom:14px">&larr; Back to Hosts</button>
+  <div class="card"><div class="card-header"><span class="card-header-title">${ip}</span><span style="font-size:12px;color:var(--text3)">${vulns.length} vulnerabilities</span></div>
+  <table><thead><tr><th>Severity</th><th>Vulnerability</th><th>Port</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+async function openVulnUpload(){
+  let scopes=[];
+  try{scopes=await api('/api/vuln/scopes');}catch(e){scopes=[];}
+  const scopeOpts=scopes.map(s=>'<option value="'+s.name+'">'+s.name+'</option>').join('')+'<option value="__new__">+ Add new scope...</option>';
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Upload Nessus Scan</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+    +'<div class="modal-body">'
+    +'<div class="form-group"><label>Scope / Environment</label><select id="vu-scope" onchange="handleScopeChange(this)">'+scopeOpts+'</select>'
+    +'<input type="text" id="vu-scope-new" placeholder="Enter new scope name" style="display:none;margin-top:6px"></div>'
+    +'<div class="form-group"><label>Scan date</label><input type="date" id="vu-scan-date" value="'+new Date().toISOString().split('T')[0]+'"></div>'
+    +'<div class="form-group"><label>Nessus CSV file</label><input type="file" id="vu-file" accept=".csv"></div>'
+    +'<div id="vu-status" style="font-size:12px;color:var(--text3);margin-top:8px"></div>'
+    +'</div>'
+    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm primary" onclick="submitVulnUpload()">Upload &amp; merge</button></div>');
+}
+
+function handleScopeChange(sel){
+  const newInput=document.getElementById('vu-scope-new');
+  newInput.style.display=sel.value==='__new__'?'block':'none';
+}
+
+async function submitVulnUpload(){
+  const fileInput=document.getElementById('vu-file');
+  const scanDate=document.getElementById('vu-scan-date').value;
+  const scopeSel=document.getElementById('vu-scope').value;
+  const scopeNew=document.getElementById('vu-scope-new').value.trim();
+  const scope=scopeSel==='__new__'?scopeNew:scopeSel;
+  const statusEl=document.getElementById('vu-status');
+  if(!fileInput.files[0]){alert('Select a CSV file first.');return;}
+  if(!scope){alert('Enter a scope name.');return;}
+  statusEl.textContent='Uploading and merging...';
+  const form=new FormData();
+  form.append('file',fileInput.files[0]);
+  form.append('scan_date',scanDate);
+  form.append('scope',scope);
+  try{
+    const r=await fetch('/api/vuln/upload',{method:'POST',credentials:'same-origin',body:form});
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||'Upload failed');
+    statusEl.style.color='#86efac';
+    statusEl.textContent=data.new+' new, '+data.updated+' updated'+(data.likely_resolved?', '+data.likely_resolved+' auto-resolved':'')+' ('+data.total_plugins+' total plugins, scope: '+data.scope+')';
+    setTimeout(()=>{closeModal();render();},1800);
+  }catch(e){
+    statusEl.style.color='#fca5a5';
+    statusEl.textContent='Error: '+e.message;
+  }
+}
+
+async function openManageScopes(){
+  const scopes=await api('/api/vuln/scopes');
+  const masterAdmin=isMasterAdmin();
+  let rows='';
+  for(const s of scopes){
+    rows+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">'
+      +'<input type="text" value="'+s.name+'" id="scope-name-'+s.id+'" style="flex:1;margin-right:8px">'
+      +'<button class="btn sm" onclick="renameScope('+s.id+')">Rename</button>'
+      +(masterAdmin?'<button class="btn sm danger" style="margin-left:6px" onclick="openDeleteScope('+s.id+',\''+s.name.replace(/'/g,"\\'")+'\')">Delete</button>':'')
+      +'</div>';
+  }
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Manage Scopes</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+    +'<div class="modal-body">'+rows+'</div>'
+    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Close</button></div>');
+}
+
+async function renameScope(sid){
+  const input=document.getElementById('scope-name-'+sid);
+  const newName=input.value.trim();
+  if(!newName)return;
+  try{
+    await api('/api/vuln/scopes/'+sid,{method:'PUT',body:{name:newName}});
+    closeModal();
+    render();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+function openDeleteScope(sid,name){
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500;color:#ef4444">Delete scope</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+    +'<div class="modal-body">'
+    +'<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Deleting "'+name+'" will fail if it\'s still in use. If you want to merge its data into another scope, enter that scope name below (leave blank to only allow deletion if unused).</p>'
+    +'<div class="form-group"><label>Reassign existing data to (optional)</label><input type="text" id="scope-reassign" placeholder="e.g. AWS SS"></div>'
+    +'</div>'
+    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm danger" onclick="confirmDeleteScope('+sid+')">Delete</button></div>');
+}
+
+async function confirmDeleteScope(sid){
+  const reassign=document.getElementById('scope-reassign').value.trim();
+  try{
+    await api('/api/vuln/scopes/'+sid,{method:'DELETE',body:{reassign_to:reassign}});
+    closeModal();
+    render();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+function openDeleteVulnScan(scanId,filename){
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500;color:#ef4444">Permanently delete scan upload</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+    +'<div class="modal-body">'
+    +'<div style="background:#3f0f0f;border:1px solid #b91c1c;border-radius:var(--radius);padding:12px 14px;font-size:13px;color:#fca5a5;margin-bottom:16px;line-height:1.6">'
+    +'<strong>This cannot be undone.</strong> This removes all host data from "'+filename+'". Any vulnerability that existed only because of this scan will be deleted entirely. Vulnerabilities also detected in other scans will simply have this scan\'s hosts removed.'
+    +'</div>'
+    +'<div class="form-group"><label>Type the filename to confirm: <strong>'+filename+'</strong></label><input type="text" id="del-scan-confirm" placeholder="'+filename+'"></div>'
+    +'</div>'
+    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm danger" onclick="confirmDeleteVulnScan('+scanId+',\''+filename.replace(/'/g,"\\'")+'\')">Permanently delete</button></div>');
+}
+
+async function confirmDeleteVulnScan(scanId,filename){
+  const typed=document.getElementById('del-scan-confirm').value.trim();
+  if(typed!==filename){alert('The filename you typed does not match. Deletion cancelled.');return;}
+  try{
+    const res=await api('/api/vuln/scans/'+scanId,{method:'DELETE',body:{confirm_name:typed}});
+    closeModal();
+    alert('Scan deleted. '+res.removed_findings+' vulnerabilities that only existed in this scan were also removed.');
+    render();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+
+function handleOverlayClick(e){if(e.target.classList.contains('modal-overlay'))closeModal();}
+function showModal(html, extraClass){document.getElementById('modal-root').innerHTML='<div class="modal-overlay" onclick="handleOverlayClick(event)"><div class="modal '+(extraClass||'')+'">'+html+'</div></div>';}
+function closeModal(){document.getElementById('modal-root').innerHTML='';}
+
+
+// ---- Idle session timeout ----
+let _idleTimer=null, _warnTimer=null, _idleCountdown=null;
+let _timeoutMs=60*60*1000, _warningMs=10*60*1000;
+
+function resetIdleTimer(){
+  clearTimeout(_idleTimer);
+  clearTimeout(_warnTimer);
+  clearInterval(_idleCountdown);
+  const warnEl=document.getElementById('idle-warning');
+  if(warnEl)warnEl.style.display='none';
+  // Show warning when (timeout - warningTime) has passed
+  _warnTimer=setTimeout(showIdleWarning, _timeoutMs - _warningMs);
+  _idleTimer=setTimeout(()=>{
+    clearInterval(_idleCountdown);
+    fetch('/api/logout',{method:'POST',credentials:'same-origin'}).finally(()=>{
+      window.location.href='/login';
+    });
+  }, _timeoutMs);
+}
+
+function showIdleWarning(){
+  let secsLeft=(_warningMs/1000)|0;
+  const warnEl=document.getElementById('idle-warning');
+  const cntEl=document.getElementById('idle-countdown');
+  if(warnEl){
+    warnEl.style.display='flex';
+    if(cntEl)cntEl.textContent=secsLeft+'s';
+    _idleCountdown=setInterval(()=>{
+      secsLeft--;
+      if(cntEl)cntEl.textContent=secsLeft+'s';
+      if(secsLeft<=0)clearInterval(_idleCountdown);
+    },1000);
+  }
+}
+
+function initIdleTimeout(timeoutMins, warningMins){
+  _timeoutMs=(timeoutMins||60)*60*1000;
+  _warningMs=(warningMins||10)*60*1000;
+  ['mousemove','keydown','click','scroll','touchstart'].forEach(ev=>{
+    document.addEventListener(ev, resetIdleTimer, {passive:true});
+  });
+  resetIdleTimer();
+}
+
+(async()=>{await loadMe();render();})();
+</script>
+</body>
+</html>

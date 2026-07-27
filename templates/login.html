@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — TracePatch</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#0f1117;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-card{background:#161b27;border:1px solid #2a3347;border-radius:14px;padding:36px 34px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.4)}
+.brand{text-align:center;margin-bottom:28px}
+.brand h1{font-size:20px;font-weight:700;letter-spacing:-0.01em}
+.brand p{font-size:12px;color:#64748b;margin-top:4px}
+.brand .badge{display:inline-block;margin-top:10px;font-size:10px;background:#1e1240;color:#c4b5fd;padding:2px 10px;border-radius:100px;border:1px solid #534AB7}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:500;color:#94a3b8;margin-bottom:6px}
+input{width:100%;padding:10px 12px;border:1px solid #3a4560;border-radius:8px;background:#1e2535;color:#e2e8f0;font-family:inherit;font-size:14px;transition:border-color 0.15s}
+input:focus{outline:none;border-color:#7c6ff7}
+.btn-login{width:100%;padding:11px;background:#534AB7;border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:6px;transition:background 0.15s}
+.btn-login:hover{background:#453d99}
+.btn-login:disabled{opacity:0.6;cursor:not-allowed}
+.error{background:#3f0f0f;border:1px solid #b91c1c;color:#fca5a5;font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:16px;display:none}
+.footer-note{text-align:center;font-size:11px;color:#475569;margin-top:20px}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="brand">
+    <h1>TracePatch</h1>
+    <p>Pen Test Remediation &amp; Audit Tracker</p>
+    <span class="badge">{{ORG_NAME}} IT Security</span>
+  </div>
+  <div class="error" id="error"></div>
+  <div class="form-group">
+    <label for="username">Username</label>
+    <input type="text" id="username" autocomplete="username" autofocus>
+  </div>
+  <div class="form-group">
+    <label for="password">Password</label>
+    <input type="password" id="password" autocomplete="current-password">
+  </div>
+  <button class="btn-login" id="login-btn" onclick="doLogin()">Sign in</button>
+  <a href="/request-access" style="display:block;text-align:center;font-size:12px;color:#7c6ff7;margin-top:14px;text-decoration:none">Need an account? Request access</a>
+  <div class="footer-note">Authorized access only &middot; Activity is logged</div>
+</div>
+<script>
+const errEl=document.getElementById('error');
+const btn=document.getElementById('login-btn');
+
+function showError(msg){errEl.textContent=msg;errEl.style.display='block';}
+
+async function doLogin(){
+  const username=document.getElementById('username').value.trim();
+  const password=document.getElementById('password').value;
+  if(!username||!password){showError('Enter username and password.');return;}
+  errEl.style.display='none';
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>Signing in...';
+  try{
+    const r=await fetch('/api/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'same-origin',
+      body:JSON.stringify({username,password})
+    });
+    const data=await r.json();
+    if(!r.ok){showError(data.error||'Login failed');btn.disabled=false;btn.textContent='Sign in';return;}
+    window.location.href='/app';
+  }catch(e){
+    showError('Connection error. Try again.');
+    btn.disabled=false;btn.textContent='Sign in';
+  }
+}
+
+document.getElementById('password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('username').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('password').focus();});
+</script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TracePatch — {{ORG_NAME}}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column}
+.bg{position:fixed;inset:0;background:radial-gradient(ellipse at 20% 50%,rgba(83,74,183,0.15) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(124,111,247,0.1) 0%,transparent 50%);pointer-events:none}
+header{padding:20px 40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a3347;position:relative;z-index:1}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#534AB7,#7c6ff7);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.logo-text{font-size:16px;font-weight:600;letter-spacing:0.02em}
+.logo-sub{font-size:11px;color:#64748b;margin-top:1px}
+.header-badge{font-size:11px;color:#64748b;background:#161b27;border:1px solid #2a3347;padding:4px 12px;border-radius:100px}
+.hero{flex:1;display:flex;align-items:center;justify-content:center;padding:60px 40px;position:relative;z-index:1}
+.hero-inner{max-width:560px;text-align:center}
+.hero-tag{display:inline-flex;align-items:center;gap:6px;background:#1e1240;border:1px solid #534AB7;color:#c4b5fd;font-size:12px;padding:4px 14px;border-radius:100px;margin-bottom:24px}
+.hero-tag svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+h1{font-size:42px;font-weight:700;line-height:1.15;letter-spacing:-0.02em;margin-bottom:16px}
+h1 span{background:linear-gradient(135deg,#7c6ff7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subtitle{font-size:16px;color:#94a3b8;line-height:1.6;margin-bottom:36px;max-width:420px;margin-left:auto;margin-right:auto}
+.signin-btn{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#534AB7,#7c6ff7);color:#fff;font-size:15px;font-weight:500;padding:14px 32px;border-radius:10px;text-decoration:none;transition:all 0.2s;box-shadow:0 4px 24px rgba(83,74,183,0.4)}
+.signin-btn:hover{transform:translateY(-1px);box-shadow:0 6px 32px rgba(83,74,183,0.5)}
+.signin-btn svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.warning{margin-top:20px;font-size:12px;color:#64748b;display:flex;align-items:center;justify-content:center;gap:6px}
+.warning svg{width:13px;height:13px;stroke:#64748b;fill:none;stroke-width:2;flex-shrink:0}
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:56px;text-align:left}
+.feature{background:#161b27;border:1px solid #2a3347;border-radius:12px;padding:20px}
+.feature-icon{width:32px;height:32px;background:#1e1240;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.feature-icon svg{width:17px;height:17px;stroke:#7c6ff7;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.feature h3{font-size:13px;font-weight:600;margin-bottom:6px}
+.feature p{font-size:12px;color:#64748b;line-height:1.5}
+footer{padding:16px 40px;border-top:1px solid #2a3347;display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#64748b;position:relative;z-index:1}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div>
+      <div class="logo-text">TracePatch</div>
+      <div class="logo-sub">{{ORG_NAME}}</div>
+    </div>
+  </div>
+  <div class="header-badge">Authorized Access Only</div>
+</header>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-tag">
+      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Internal Security Platform
+    </div>
+    <h1>Pen Test Remediation<br>&amp; <span>Audit Tracking</span></h1>
+    <p class="subtitle">Centralized tracking of penetration test findings, remediation ownership, POA&M management, and auditor reporting for {{ORG_NAME}} IT Security.</p>
+    <a href="/app" class="signin-btn">
+      <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      Sign in to TracePatch
+    </a>
+    <div class="warning">
+      <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      This system is restricted to authorized {{ORG_NAME}} staff only. All access is logged.
+    </div>
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <h3>PDF Import</h3>
+        <p>Upload Securin, Tenable, or Nessus reports and auto-extract findings into the tracker.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+        <h3>Remediation Tracking</h3>
+        <p>Assign findings to owners, track status, and maintain a full audit trail of changes.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+        <h3>Auditor Reports</h3>
+        <p>Generate NIST SP 800-53 POA&M reports with evidence documentation ready for auditors.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span>TracePatch &mdash; {{ORG_NAME}} IT Security &copy; 2026</span>
+  <span>All sessions encrypted &middot; Data stays internal &middot; No external connections</span>
+</footer>
+</body>
+</html>

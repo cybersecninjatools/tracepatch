@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Access Denied — TracePatch</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.bg{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(185,28,28,0.1) 0%,transparent 60%);pointer-events:none}
+.box{background:#161b27;border:1px solid #2a3347;border-radius:16px;padding:48px 40px;max-width:420px;width:100%;text-align:center;position:relative;z-index:1}
+.icon{width:56px;height:56px;background:#3f0f0f;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.icon svg{width:28px;height:28px;stroke:#fca5a5;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+h1{font-size:20px;font-weight:600;margin-bottom:8px}
+p{font-size:14px;color:#64748b;line-height:1.6;margin-bottom:28px}
+.btn{display:inline-flex;align-items:center;gap:8px;background:#534AB7;color:#fff;font-size:14px;font-weight:500;padding:10px 24px;border-radius:8px;text-decoration:none;transition:background 0.2s}
+.btn:hover{background:#3C3489}
+.btn svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.note{margin-top:20px;font-size:12px;color:#3a4560}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="box">
+  <div class="icon">
+    <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+  </div>
+  <h1>Access Denied</h1>
+  <p>Invalid credentials. This system is restricted to authorized {{ORG_NAME}} staff only.<br>Please check your username and password and try again.</p>
+  <a href="/app" class="btn">
+    <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+    Try again
+  </a>
+  <div class="note">All failed access attempts are logged.</div>
+</div>
+</body>
+</html>

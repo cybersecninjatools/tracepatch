@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Finding Report — TracePatch</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;background:#e8eaed;color:#111;padding:32px 16px;line-height:1.5}
+.page{max-width:880px;margin:0 auto;background:#fff;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.15);padding:36px 40px}
+.toolbar{max-width:880px;margin:0 auto 16px;display:flex;justify-content:space-between;align-items:center}
+.toolbar button{padding:8px 16px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;color:#333}
+.toolbar button:hover{background:#f5f5f5}
+.toolbar button.primary{background:#534AB7;border-color:#534AB7;color:#fff}
+.toolbar button.primary:hover{background:#453d99}
+.header-band{border-bottom:3px solid #1a3a5c;padding-bottom:12px;margin-bottom:20px}
+.header-band .org{font-size:11px;font-weight:700;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.06em}
+.header-band .sub{font-size:14px;font-weight:500;margin-top:4px;color:#333}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px}
+td{padding:8px 10px;border:1px solid #ccc;vertical-align:top;color:#111}
+td.label{font-weight:600;background:#f5f5f5;width:160px;color:#111}
+.badge{display:inline-block;padding:2px 9px;border-radius:4px;background:#eee;border:1px solid #999;font-size:11px;color:#111}
+.exhibit-section{margin-top:28px}
+.exhibit-section .title{font-size:12px;font-weight:700;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.05em;border-top:2px solid #1a3a5c;padding-top:10px;margin-bottom:16px}
+.exhibit{margin-top:20px;padding-top:16px;border-top:1px solid #ddd}
+.exhibit .ex-num{font-size:11px;font-weight:700;color:#534AB7;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
+.exhibit .ex-meta{font-size:11px;color:#666;margin-bottom:10px}
+.exhibit img{max-width:100%;display:block;border:1px solid #ccc;border-radius:4px}
+.loading{text-align:center;padding:60px;color:#888}
+@media print{
+  body{background:#fff;padding:0}
+  .toolbar{display:none}
+  .page{box-shadow:none;border-radius:0;max-width:100%;padding:20px}
+  .exhibit{page-break-before:always}
+}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button onclick="window.close()">&larr; Close tab</button>
+  <button class="primary" onclick="window.print()">Print / Save PDF</button>
+</div>
+<div class="page" id="report-root"><div class="loading">Loading...</div></div>
+<script>
+function escapeHtml(s){
+  if(s===null||s===undefined)return '';
+  return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function api(path){
+  const r=await fetch(path,{credentials:'same-origin'});
+  if(!r.ok)throw new Error('Request failed: '+r.status);
+  return r.json();
+}
+
+function evidencePageUrls(fid, ef){
+  if(ef.mime_type!=='application/pdf')return ['/uploads/'+fid+'/'+ef.filename];
+  const base=ef.filename.replace(/\.pdf$/,'');
+  const urls=[];
+  for(let i=1;i<=(ef.page_count||1);i++){
+    urls.push('/uploads/'+fid+'/'+base+'-page-'+String(i).padStart(2,'0')+'.png');
+  }
+  return urls;
+}
+
+function statusColor(status){
+  if(status==='Resolved')return '#16a34a';
+  if(status==='Open')return '#b91c1c';
+  return '#b45309';
+}
+
+async function loadReport(){
+  const fid=decodeURIComponent(window.location.pathname.split('/').pop());
+  const root=document.getElementById('report-root');
+  let f, files=[];
+  try{
+    f=await api('/api/findings/'+fid);
+  }catch(e){
+    root.innerHTML='<div class="loading">Could not load finding '+escapeHtml(fid)+'. You may need to sign in.</div>';
+    return;
+  }
+  try{files=await api('/api/findings/'+fid+'/evidence_files');}catch(e){files=[];}
+
+  let exhibitsHtml='';
+  let exhibitNum=1;
+  for(const ef of files){
+    const pages=evidencePageUrls(fid, ef);
+    const isPdf=ef.mime_type==='application/pdf';
+    pages.forEach((pageUrl,pIdx)=>{
+      const pageLabel=isPdf&&pages.length>1?' (page '+(pIdx+1)+' of '+pages.length+')':'';
+      exhibitsHtml+='<div class="exhibit">'
+        +'<div class="ex-num">Exhibit '+exhibitNum+'</div>'
+        +'<div class="ex-meta">Evidence file: '+escapeHtml(ef.orig_name)+pageLabel+' &mdash; Uploaded by '+escapeHtml(ef.uploaded_by)+' on '+escapeHtml((ef.uploaded_at||'').split('T')[0])+'</div>'
+        +'<img src="'+pageUrl+'" alt="'+escapeHtml(ef.orig_name)+'">'
+        +'</div>';
+      exhibitNum++;
+    });
+  }
+
+  root.innerHTML=
+    '<div class="header-band">'
+      +'<div class="org">{{ORG_NAME}} &mdash; POA&amp;M Finding</div>'
+      +'<div class="sub">Sensitive / Internal Use Only</div>'
+    +'</div>'
+    +'<table>'
+      +'<tr><td class="label">Finding ID</td><td style="font-family:monospace">'+escapeHtml(f.id)+'</td></tr>'
+      +'<tr><td class="label">Weakness / Finding</td><td style="font-weight:600">'+escapeHtml(f.title)+'</td></tr>'
+      +'<tr><td class="label">Risk</td><td><span class="badge">'+escapeHtml(f.risk)+'</span></td></tr>'
+      +'<tr><td class="label">Affected Systems</td><td style="font-family:monospace;font-size:12px">'+escapeHtml(f.affected_hosts||'\u2014')+'</td></tr>'
+      +'<tr><td class="label">CVEs</td><td style="font-size:12px">'+escapeHtml(f.cves||'\u2014')+'</td></tr>'
+      +'<tr><td class="label">Description</td><td>'+escapeHtml(f.description||'\u2014')+'</td></tr>'
+      +'<tr><td class="label">Remediation Plan</td><td>'+escapeHtml(f.remediation||'\u2014')+'</td></tr>'
+      +'<tr><td class="label">Scheduled Completion</td><td>'+escapeHtml(f.due_date||'\u2014')+'</td></tr>'
+      +'<tr><td class="label">Status</td><td><span style="color:'+statusColor(f.status)+';font-weight:700">'+escapeHtml(f.status)+'</span></td></tr>'
+      +'<tr><td class="label">Responsible Party</td><td>'+escapeHtml(f.owner)+'</td></tr>'
+      +'<tr><td class="label">Evidence / Closure Notes</td><td>'+escapeHtml(f.evidence||'\u2014')+'</td></tr>'
+    +'</table>'
+    +(exhibitsHtml?'<div class="exhibit-section"><div class="title">Exhibit Index</div>'+exhibitsHtml+'</div>':'');
+
+  document.title='Finding Report — '+f.id;
+}
+
+loadReport();
+</script>
+</body>
+</html>

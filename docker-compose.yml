@@ -1,0 +1,24 @@
+services:
+  tracepatch:
+    image: tracepatch:test
+    container_name: tracepatch
+    ports:
+      - "8080:5000"
+    environment:
+      - SECTRACK_SECRET=${SECTRACK_SECRET}
+      - SECTRACK_ORG_NAME=${SECTRACK_ORG_NAME:-Your Organization}
+      - SECTRACK_DB=/opt/sectrack/data/sectrack.db
+      - SECTRACK_UPLOADS=/opt/sectrack/uploads
+      - TMPDIR=/opt/sectrack/tmp
+    volumes:
+      - tracepatch_data:/opt/sectrack/data
+      - tracepatch_uploads:/opt/sectrack/uploads
+      - tracepatch_tmp:/opt/sectrack/tmp
+    command: >
+      sh -c "python3 app/init_db.py && gunicorn --workers 2 --bind 0.0.0.0:5000 --timeout 120 --access-logfile - --error-logfile - app.app:app"
+    restart: unless-stopped
+
+volumes:
+  tracepatch_data:
+  tracepatch_uploads:
+  tracepatch_tmp:
