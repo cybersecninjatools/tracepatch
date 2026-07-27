@@ -1,5 +1,5 @@
 FROM python:3.9-slim
-
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/sectrack
 
 COPY app/requirements.txt ./app/requirements.txt
@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r app/requirements.txt
 
 COPY app/ ./app/
 COPY templates/ ./templates/
+COPY demo/ ./demo/
 
 RUN mkdir -p /opt/sectrack/data /opt/sectrack/uploads /opt/sectrack/tmp
 
