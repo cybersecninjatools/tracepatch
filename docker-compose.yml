@@ -1,6 +1,6 @@
 services:
   tracepatch:
-    image: tracepatch:test
+    build: .
     container_name: tracepatch
     ports:
       - "8080:5000"

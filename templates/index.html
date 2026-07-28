@@ -1255,7 +1255,7 @@ async function renderUpdates(c){
   </div>`}
 
   <div class="info-box">
-    <strong>How patching works:</strong> This server checks daily for available OS security updates (Amazon Linux 2023). Approving here does <strong>not</strong> apply patches automatically &mdash; it generates the exact command for an administrator to run manually via SSH, and logs the approval for audit purposes. ${rebootReq?'<br><br><strong style="color:#f59e0b">Note:</strong> A kernel update is pending. The server will need a reboot after patching to fully apply it.':''}
+    <strong>How patching works:</strong> This server periodically checks for available OS security updates. Approving here does <strong>not</strong> apply patches automatically &mdash; it generates the exact command for an administrator to run manually via SSH, and logs the approval for audit purposes. ${rebootReq?'<br><br><strong style="color:#f59e0b">Note:</strong> A kernel update is pending. The server will need a reboot after patching to fully apply it.':''}
   </div>
 
   ${approvals.length?`<div class="card"><div class="card-header"><span class="card-header-title">Approval History</span></div><table><thead><tr><th>Date</th><th>Approved by</th><th>Scope</th><th>Status</th></tr></thead><tbody>${histRows}</tbody></table></div>`:''}
