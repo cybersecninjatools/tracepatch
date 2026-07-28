@@ -708,6 +708,7 @@ async function addToPOAM(btn){
 
 async function renderReports(c){
   const [stats,findings,notesData]=await Promise.all([api('/api/stats'),api('/api/findings?poam=1'),api('/api/audit_notes')]);
+  const orgName=getSetting('org_name','Your Organization');
   const pct=stats.total?Math.round(stats.resolved/stats.total*100):0;
   const today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   const byRisk={Critical:[],High:[],Medium:[],Low:[],Informational:[]};
