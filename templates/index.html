@@ -1211,61 +1211,50 @@ async function renderChangelog(c){
 
 async function renderUpdates(c){
   if(!isAdmin()){c.innerHTML='<div class="empty"><p>Admin access required.</p></div>';return;}
-  let status={};
-  try{status=await api('/api/patch-status');}catch(e){status={};}
-  let approvals=[];
-  try{approvals=await api('/api/patch-approvals');}catch(e){approvals=[];}
-
-  const count=status.package_count||0;
-  const checkedAt=status.checked_at?new Date(status.checked_at).toLocaleString():'Never';
-  const rebootReq=status.reboot_required;
-  const masterAdmin=isMasterAdmin();
-
-  let pkgRows='';
-  for(const p of (status.packages||[])){
-    const isKernel=/^(kernel|systemd|glibc)/i.test(p.name);
-    pkgRows+='<tr><td style="font-family:var(--mono);font-size:12px;font-weight:500">'+escHtml(p.name)+'</td>'
-      +'<td style="font-size:12px;color:var(--text2)">'+escHtml(p.version)+'</td>'
-      +'<td>'+(isKernel?'<span class="badge high">Reboot required</span>':'<span class="badge informational">Standard</span>')+'</td></tr>';
-  }
-
-  let histRows='';
-  for(const a of approvals){
-    const statusBadge=a.status==='approved_dry_run'?'<span class="badge informational">Dry run generated</span>':
-                       a.status==='completed'?'<span class="badge low">Completed</span>':
-                       '<span class="badge medium">'+a.status+'</span>';
-    histRows+='<tr><td style="font-size:12px">'+(a.requested_at||'').split('.')[0].replace('T',' ')+'</td>'
-      +'<td style="font-size:12px">'+escHtml(a.requested_by)+'</td>'
-      +'<td style="font-size:12px">'+a.package_count+' packages</td>'
-      +'<td>'+statusBadge+'</td></tr>';
-  }
-
+  let version={};
+  try{version=await api('/api/version');}catch(e){version={};}
   c.innerHTML=`
   <div class="metrics">
-    <div class="metric"><div class="label">Packages pending</div><div class="value" style="${count>0?'color:#f59e0b':''}">${count}</div></div>
-    <div class="metric"><div class="label">Reboot required</div><div class="value" style="${rebootReq?'color:#ef4444':''}">${rebootReq?'Yes':'No'}</div></div>
-    <div class="metric"><div class="label">Last checked</div><div class="value" style="font-size:15px">${checkedAt}</div></div>
-    <div class="metric"><div class="label">Current release</div><div class="value" style="font-size:15px;font-family:var(--mono)">${status.current_release||'&mdash;'}</div></div>
+    <div class="metric"><div class="label">Current commit</div><div class="value" style="font-size:15px;font-family:var(--mono)">${version.commit||'unknown'}</div></div>
+    <div class="metric"><div class="label">Build date</div><div class="value" style="font-size:15px">${version.build_date||'unknown'}</div></div>
   </div>
-
-  ${count===0?'<div class="card"><div class="card-body"><div class="empty"><p>No pending updates. System is up to date as of the last check.</p></div></div></div>':`
   <div class="card">
     <div class="card-header">
-      <span class="card-header-title">Pending Updates</span>
-      <button class="btn sm" onclick="refreshPatchStatus()" id="refresh-patch-btn">Refresh now</button>
-      ${masterAdmin?'<button class="btn sm primary" onclick="approveUpdates()">Generate patch command</button>':'<span style="font-size:11px;color:var(--text3)">Master admin required to approve</span>'}
+      <span class="card-header-title">Check for Updates</span>
+      <button class="btn sm primary" onclick="checkForUpdates()" id="check-update-btn">Check now</button>
     </div>
-    <table><thead><tr><th>Package</th><th>Version</th><th>Impact</th></tr></thead><tbody>${pkgRows}</tbody></table>
-  </div>`}
-
-  <div class="info-box">
-    <strong>How patching works:</strong> This server periodically checks for available OS security updates. Approving here does <strong>not</strong> apply patches automatically &mdash; it generates the exact command for an administrator to run manually via SSH, and logs the approval for audit purposes. ${rebootReq?'<br><br><strong style="color:#f59e0b">Note:</strong> A kernel update is pending. The server will need a reboot after patching to fully apply it.':''}
+    <div class="card-body" id="update-check-result">
+      <p style="color:var(--text3);font-size:13px">Click "Check now" to compare this instance against the latest code on GitHub.</p>
+    </div>
   </div>
-
-  ${approvals.length?`<div class="card"><div class="card-header"><span class="card-header-title">Approval History</span></div><table><thead><tr><th>Date</th><th>Approved by</th><th>Scope</th><th>Status</th></tr></thead><tbody>${histRows}</tbody></table></div>`:''}
+  <div class="info-box">
+    <strong>How updates work:</strong> This instance runs from a Docker image built from the GitHub repository. Checking for updates compares this build's commit against the latest commit on the main branch. Updates are not applied automatically &mdash; review the changes, then pull and rebuild manually.
+  </div>
   `;
 }
-
+async function checkForUpdates(){
+  const btn=document.getElementById('check-update-btn');
+  const result=document.getElementById('update-check-result');
+  btn.disabled=true;btn.textContent='Checking...';
+  try{
+    const check=await api('/api/version/check');
+    if(check.error){
+      result.innerHTML='<p style="color:var(--text3);font-size:13px">Could not check for updates: '+escHtml(check.error)+'</p>';
+    }else if(check.update_available){
+      result.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span class="badge medium">Update available</span><span style="font-size:13px;color:var(--text2)">'+check.current+' &rarr; '+check.latest+'</span></div>'
+        +'<p style="font-size:13px;margin-bottom:12px"><a href="'+check.compare_url+'" target="_blank" style="color:var(--accent)">View changes on GitHub &rarr;</a></p>'
+        +'<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px;font-family:var(--mono);font-size:12px;line-height:1.8">'
+        +'cd ~/tracepatch<br>git pull<br>docker compose build<br>docker compose up -d --force-recreate'
+        +'</div>'
+        +'<p style="font-size:12px;color:var(--text3);margin-top:8px">Your data is safe during updates &mdash; it lives in Docker volumes, not in the container itself.</p>';
+    }else{
+      result.innerHTML='<p style="color:var(--text2);font-size:13px">You\'re up to date. Current commit: '+check.current+'</p>';
+    }
+  }catch(e){
+    result.innerHTML='<p style="color:var(--text3);font-size:13px">Could not check for updates.</p>';
+  }
+  btn.disabled=false;btn.textContent='Check now';
+}
 async function refreshPatchStatus(){
   const btn=document.getElementById('refresh-patch-btn');
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Checking...';}

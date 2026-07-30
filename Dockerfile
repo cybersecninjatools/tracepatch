@@ -10,6 +10,9 @@ COPY templates/ ./templates/
 COPY demo/ ./demo/
 
 RUN mkdir -p /opt/sectrack/data /opt/sectrack/uploads /opt/sectrack/tmp
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+RUN echo "${GIT_COMMIT} ${BUILD_DATE}" > /opt/sectrack/VERSION
 
 ENV SECTRACK_DB=/opt/sectrack/data/sectrack.db
 ENV SECTRACK_UPLOADS=/opt/sectrack/uploads

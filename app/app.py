@@ -2388,7 +2388,39 @@ def get_changelog():
         return jsonify([])
     with open(changelog_path) as f:
         return jsonify(json.load(f))
+@app.route('/api/version', methods=['GET'])
+def get_version():
+    try:
+        with open('/opt/sectrack/VERSION') as f:
+            parts = f.read().strip().split(' ', 1)
+        return jsonify({'commit': parts[0], 'build_date': parts[1] if len(parts) > 1 else 'unknown'})
+    except FileNotFoundError:
+        return jsonify({'commit': 'unknown', 'build_date': 'unknown'})
 
+@app.route('/api/version/check', methods=['GET'])
+def check_version():
+    import urllib.request, json as jsonlib
+    try:
+        with open('/opt/sectrack/VERSION') as f:
+            current = f.read().strip().split(' ')[0]
+    except FileNotFoundError:
+        current = 'unknown'
+    try:
+        req = urllib.request.Request(
+            'https://api.github.com/repos/cybersecninjatools/tracepatch/commits/main',
+            headers={'User-Agent': 'TracePatch'}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = jsonlib.loads(resp.read())
+        latest = data['sha'][:7]
+        return jsonify({
+            'current': current,
+            'latest': latest,
+            'update_available': current != latest and current != 'unknown',
+            'compare_url': f'https://github.com/cybersecninjatools/tracepatch/compare/{current}...{latest}' if current != 'unknown' else None
+        })
+    except Exception as e:
+        return jsonify({'current': current, 'latest': None, 'update_available': False, 'error': str(e)})
 
 @app.route('/logout')
 def logout():

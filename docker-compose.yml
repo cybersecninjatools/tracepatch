@@ -1,6 +1,11 @@
 services:
   tracepatch:
-    build: .
+    build:
+      context: .
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+
     container_name: tracepatch
     ports:
       - "127.0.0.1:5000:5000"
