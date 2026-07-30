@@ -292,7 +292,9 @@ async function loadMe(){
     const timeoutMins=parseInt(getSetting('session_timeout_minutes','60'));
     const warningMins=parseInt(getSetting('session_warning_minutes','10'));
     const appTitle=getSetting('app_title','TracePatch');
-    const orgName=getSetting('org_name','Your Organization');
+    
+    const settingsData=await api('/api/settings');
+    const orgName=(settingsData.find(s=>s.key==='org_name')||{}).value||'Your Organization';
     // Apply branding
     document.title=appTitle;
     const h1=document.querySelector('.sidebar-header h1');
@@ -708,7 +710,8 @@ async function addToPOAM(btn){
 
 async function renderReports(c){
   const [stats,findings,notesData]=await Promise.all([api('/api/stats'),api('/api/findings?poam=1'),api('/api/audit_notes')]);
-  const orgName=getSetting('org_name','Your Organization');
+  const settingsData=await api('/api/settings');
+  const orgName=(settingsData.find(s=>s.key==='org_name')||{}).value||'Your Organization';
   const pct=stats.total?Math.round(stats.resolved/stats.total*100):0;
   const today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   const byRisk={Critical:[],High:[],Medium:[],Low:[],Informational:[]};
