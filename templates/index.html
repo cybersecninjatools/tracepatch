@@ -292,7 +292,7 @@ async function loadMe(){
     const timeoutMins=parseInt(getSetting('session_timeout_minutes','60'));
     const warningMins=parseInt(getSetting('session_warning_minutes','10'));
     const appTitle=getSetting('app_title','TracePatch');
-    const orgName=getSetting('org_name','NMERB');
+    const orgName=getSetting('org_name','Your Organization');
     // Apply branding
     document.title=appTitle;
     const h1=document.querySelector('.sidebar-header h1');

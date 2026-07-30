@@ -3,7 +3,7 @@ services:
     build: .
     container_name: tracepatch
     ports:
-      - "8080:5000"
+      - "127.0.0.1:5000:5000"
     environment:
       - SECTRACK_SECRET=${SECTRACK_SECRET}
       - SECTRACK_ORG_NAME=${SECTRACK_ORG_NAME:-Your Organization}
