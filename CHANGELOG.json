@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "commit": "d2dd6e3",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Fix demo data seeding so delete protection, auto-hide, and the Show demo data toggle actually work"
+      }
+    ]
+  }
+]
