@@ -34,12 +34,18 @@ to prevent accidentally running with a known/default secret.
 ## 3. Start the application
 
 ```bash
-docker compose up -d
+./build.sh
 ```
 
-This builds the image, creates persistent storage volumes, initializes an empty
-database automatically, and starts the app. Your data (findings, uploads, users)
-persists across restarts and updates via Docker named volumes.
+This is the correct way to build and (re)start TracePatch — use it instead of
+calling `docker compose build`/`docker build` directly. It bakes the current
+git commit hash and build date into the image (`GIT_COMMIT`/`BUILD_DATE` build
+args), which is what powers the "Current commit" display and update check on
+the in-app Updates page; a raw `docker compose build` skips that and leaves
+the version as `unknown`. `build.sh` also creates persistent storage volumes,
+initializes an empty database automatically (via `init_db.py` on container
+start), and starts the app. Your data (findings, uploads, users) persists
+across restarts and updates via Docker named volumes.
 
 ## 4. Create your first admin account
 
@@ -56,13 +62,59 @@ account you just created.
 
 ## Updating to a new version
 
+The **Updates** page in the app (admin only) compares your running build's
+commit against the latest commit on GitHub's `main` branch and tells you
+whether you're behind — it's a commit checker, not an auto-updater; it never
+patches anything for you. When it shows an update is available:
+
 ```bash
 git pull
-docker build -t tracepatch:latest .
-docker compose up -d --force-recreate
+./build.sh
 ```
 
-Your data is untouched — it lives in Docker volumes, not in the container itself.
+Don't use `docker compose build` / `docker build` directly — `build.sh` is
+what bakes the commit hash and build date into the image so the Updates page
+reports accurate version info afterward. Your data is untouched either way —
+it lives in Docker volumes, not in the container itself.
+
+## Demo data (optional)
+
+TracePatch ships with seed scripts under `demo/` that populate a synthetic
+dataset (findings, vulnerability scans, users, etc.) for demoing or evaluating
+the app. Running `docker compose up -d` / `./build.sh` on a fresh clone does
+**not** run these — a normal install starts with an empty database and never
+sees demo data or the settings below. Skip this section unless you've
+intentionally run one of the `demo/seed_*.py` scripts.
+
+If demo data is present:
+- Seeded records are flagged internally (`is_demo=1`) and are protected from
+  deletion — attempting to delete one returns an error telling you to turn
+  off the **"Show demo data"** toggle in Settings instead of deleting it.
+- The moment any real (non-demo) finding is created, demo data is
+  automatically hidden — the "Show demo data" setting flips itself off, no
+  manual step required. This means once you start entering real findings,
+  the demo dataset gets out of your way on its own; you don't need to
+  remember to clean it up.
+- Demo data is hidden, not deleted, so toggling "Show demo data" back on in
+  Settings brings it back at any time.
+
+## Updating the changelog
+
+The in-app **Changelog** page reads `CHANGELOG.json` from the repo root,
+which is baked into the image at build time (`Dockerfile` copies it to
+`/opt/sectrack/CHANGELOG.json`). It's not required reading for running your
+own instance, but if you're maintaining a fork and want your own changes to
+show up there, add an entry with:
+
+```bash
+python3 tools/add_changelog_entry.py --type add --text "Describe the user-facing change"
+```
+
+- `--type` is one of `add`, `fix`, or `remove`
+- `--commit`/`--date` default to the current `HEAD`'s short hash and commit
+  date if omitted
+- Commit the resulting `CHANGELOG.json` change along with your other changes
+  before rebuilding
 
 ## Troubleshooting
 
