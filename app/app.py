@@ -610,11 +610,13 @@ def deny_access_request(req_id):
 def list_engagements():
     db     = get_db()
     status = request.args.get('status', 'active')
+    demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
+    demo_join = "" if (demo_visible and demo_visible['value'] == 'true') else " AND f.is_demo=0"
     if status == 'all':
-        q = "SELECT e.*, COUNT(f.id) as finding_count FROM engagements e LEFT JOIN findings f ON f.engagement_id=e.id GROUP BY e.id ORDER BY e.eng_date DESC"
+        q = f"SELECT e.*, COUNT(f.id) as finding_count FROM engagements e LEFT JOIN findings f ON f.engagement_id=e.id{demo_join} GROUP BY e.id ORDER BY e.eng_date DESC"
         rows = db.execute(q).fetchall()
     else:
-        q = "SELECT e.*, COUNT(f.id) as finding_count FROM engagements e LEFT JOIN findings f ON f.engagement_id=e.id WHERE e.status=? GROUP BY e.id ORDER BY e.eng_date DESC"
+        q = f"SELECT e.*, COUNT(f.id) as finding_count FROM engagements e LEFT JOIN findings f ON f.engagement_id=e.id{demo_join} WHERE e.status=? GROUP BY e.id ORDER BY e.eng_date DESC"
         rows = db.execute(q, (status,)).fetchall()
     return jsonify([dict(r) for r in rows])
 

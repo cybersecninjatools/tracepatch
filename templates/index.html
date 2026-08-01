@@ -243,6 +243,7 @@ select option{background:var(--bg3)}
 <script>
 const API='';
 let state={view:'dashboard',filterStatus:'All',filterRisk:'All',me:null};
+let renderSeq=0;
 let STAFF=['Unassigned'];
 const RISK_LEVELS=['Critical','High','Medium','Low','Informational'];
 const STATUSES=['Open','In Progress','Resolved','Risk Accepted','False Positive'];
@@ -317,8 +318,13 @@ function nav(view){
 }
 
 async function render(){
-  const c=document.getElementById('content');
-  c.innerHTML='<div class="empty"><div class="spinner"></div></div>';
+  const seq=++renderSeq;
+  const live=document.getElementById('content');
+  live.innerHTML='<div class="empty"><div class="spinner"></div></div>';
+  // A render can be superseded by a newer nav() while its own awaits are still
+  // pending; dropping stale innerHTML writes here stops that late write from
+  // clobbering whatever the newer render already put on screen.
+  const c=new Proxy(live,{set(target,prop,value){if(prop==='innerHTML'&&seq!==renderSeq)return true;target[prop]=value;return true;}});
   try{
     if(state.view==='dashboard')await renderDashboard(c);
     else if(state.view==='findings')await renderFindings(c);
@@ -833,7 +839,6 @@ async function addUser(){
   if(password.length<8){alert('Password must be at least 8 characters.');return;}
   try{
     await api('/api/users',{method:'POST',body:{username,display,password,title:document.getElementById('nu-title').value.trim(),role:document.getElementById('nu-role').value}});
-    alert('User "'+username+'" created. They can now sign in with the password you set.');
     render();
   }catch(e){alert('Error: '+e.message);}
 }
@@ -972,7 +977,7 @@ async function openFinding(id){
     <div class="form-group"><label>Remediation plan</label><textarea id="ed-rem" ${dis}>${f.remediation||''}</textarea></div>
     <div class="form-group"><label>Evidence / closure notes</label><textarea id="ed-ev" ${dis}>${f.evidence||''}</textarea></div>
     <div class="form-group">
-      <label>Evidence images <span style="font-size:10px;color:var(--text3)">(JPEG, PNG, GIF, WebP, or PDF (JPEG, PNG, GIF, WebP &mdash; click to enlarge)mdash; click to enlarge)</span></label>
+      <label>Evidence images <span style="font-size:10px;color:var(--text3)">(JPEG, PNG, GIF, WebP, or PDF &mdash; click to enlarge)</span></label>
       <div class="evidence-grid" id="evidence-grid-${f.id}"></div>
     </div>
     <div class="form-row"><div class="form-group"><label>Finding type</label><select id="ed-isnew" ${dis}>${newOpts}</select></div><div class="form-group"><label>In POA&amp;M</label><select id="ed-poam" ${dis}>${poamOpts}</select></div></div>
@@ -1195,7 +1200,7 @@ async function renderChangelog(c){
       +'</div>';
   }
   html+='<div style="margin-top:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;font-size:12px;color:var(--text2)">'
-    +'Changelog entries are generated automatically from commits pushed to <code>main</code> — nothing to configure here.'
+    +'Changelog entries are added by maintainers via <code>tools/add_changelog_entry.py</code> and ship with the next build — nothing to configure here.'
     +'</div></div>';
   c.innerHTML=html;
 }
@@ -1325,6 +1330,7 @@ async function renderArchived(c){
 
 function setArchiveTab(tab){
   state.archiveTab=tab;
+  document.getElementById('page-title').textContent=tab==='vulnerabilities'?'Archived Vulnerabilities':'Archived Engagements';
   render();
 }
 
@@ -1662,7 +1668,7 @@ async function renderVulnHosts(c){
     rows+='<tr onclick="openVulnHostDetail(\''+h.host_ip+'\')" style="cursor:pointer">'
       +'<td style="font-family:var(--mono);font-size:12px">'+h.host_ip+'</td>'
       +'<td style="font-size:12px">'+(h.hostname||'&mdash;')+'</td>'
-      +'<td>'+h.vuln_count+' vulnerabilities</td>'
+      +'<td>'+h.vuln_count+' vulnerabilit'+(h.vuln_count!==1?'ies':'y')+'</td>'
       +'<td style="font-size:11px;color:var(--text3)">'+(h.last_seen||'').split(' ')[0]+'</td></tr>';
   }
   c.innerHTML=`<button class="btn sm" onclick="nav('vulnerabilities')" style="margin-bottom:14px">&larr; Back to Vulnerabilities</button>
@@ -1688,7 +1694,7 @@ async function renderVulnHostDetail(c){
       +'<td><span class="badge '+v.status.toLowerCase().replace(/ /g,'-')+'">'+v.status+'</span></td></tr>';
   }
   c.innerHTML=`<button class="btn sm" onclick="nav('vulnhosts')" style="margin-bottom:14px">&larr; Back to Hosts</button>
-  <div class="card"><div class="card-header"><span class="card-header-title">${ip}</span><span style="font-size:12px;color:var(--text3)">${vulns.length} vulnerabilities</span></div>
+  <div class="card"><div class="card-header"><span class="card-header-title">${ip}</span><span style="font-size:12px;color:var(--text3)">${vulns.length} vulnerabilit${vulns.length!==1?'ies':'y'}</span></div>
   <table><thead><tr><th>Severity</th><th>Vulnerability</th><th>Port</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
