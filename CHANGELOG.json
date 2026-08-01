@@ -22,5 +22,19 @@
         "text": "Fix a navigation race that could leave stale page content on screen, a blocking dialog that made user creation look frozen, and several smaller UI/copy bugs (evidence image label, vulnerability count pluralization, Archived page header, Changelog page copy)"
       }
     ]
+  },
+  {
+    "commit": "2e1cda5",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Fix idle-session warning banner showing raw seconds instead of a readable minutes/seconds countdown"
+      },
+      {
+        "type": "add",
+        "text": "Add an optional email field to user accounts for admin contact/records, plus a documented break-glass password reset for a locked-out master admin (create_admin.py --reset)"
+      }
+    ]
   }
 ]
