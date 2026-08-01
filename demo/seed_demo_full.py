@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Seeds remaining demo data: findings, engagement 2, vuln scan data, users, changelog, settings."""
+"""Seeds remaining demo data: findings, engagement 2, vuln scan data, users, settings."""
 import sqlite3
 import os
-import json
 from werkzeug.security import generate_password_hash
 
 DB_PATH = os.environ.get('SECTRACK_DB', '/opt/sectrack/data/sectrack.db')
-CHANGELOG_PATH = '/opt/sectrack/data/changelog.json'
 
 conn = sqlite3.connect(DB_PATH)
 
@@ -154,20 +152,5 @@ conn.execute(
 
 conn.commit()
 conn.close()
-
-# --- Changelog file ---
-changelog = {
-    "entries": [
-        {"date": "2026-06-01", "text": "Initial release of TracePatch — de-branded, containerized version of internal pen test tracker."},
-        {"date": "2026-06-15", "text": "Added vulnerability scan ingestion and tracking (vuln_findings, vuln_scans)."},
-        {"date": "2026-07-01", "text": "Added PDF report parsing and automated finding extraction."},
-        {"date": "2026-07-20", "text": "Added evidence file upload with thumbnail preview support."},
-        {"date": "2026-07-27", "text": "Public demo instance deployed with synthetic sample data."},
-    ]
-}
-os.makedirs(os.path.dirname(CHANGELOG_PATH), exist_ok=True)
-with open(CHANGELOG_PATH, 'w') as f:
-    json.dump(changelog, f, indent=2)
-print("Changelog written")
 
 print("\nSeed complete.")

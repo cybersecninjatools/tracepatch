@@ -2408,7 +2408,9 @@ def delete_engagement(eid):
 
 @app.route('/api/changelog', methods=['GET'])
 def get_changelog():
-    changelog_path = os.environ.get('SECTRACK_CHANGELOG', '/opt/sectrack/data/changelog.json')
+    # CHANGELOG.json is generated from git history by .github/workflows/changelog.yml
+    # and baked into the image at /opt/sectrack/CHANGELOG.json — it is not seeded into the DB.
+    changelog_path = os.environ.get('SECTRACK_CHANGELOG', '/opt/sectrack/CHANGELOG.json')
     if not os.path.exists(changelog_path):
         return jsonify([])
     with open(changelog_path) as f:

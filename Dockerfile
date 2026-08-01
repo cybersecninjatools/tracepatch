@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r app/requirements.txt
 COPY app/ ./app/
 COPY templates/ ./templates/
 COPY demo/ ./demo/
+COPY CHANGELOG.json /opt/sectrack/CHANGELOG.json
 
 RUN mkdir -p /opt/sectrack/data /opt/sectrack/uploads /opt/sectrack/tmp
 ARG GIT_COMMIT=unknown

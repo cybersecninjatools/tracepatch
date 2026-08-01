@@ -1179,7 +1179,7 @@ async function renderChangelog(c){
     remove:'<span style="color:#ef4444;font-weight:600">-</span>'
   };
   let html='<div style="max-width:680px">';
-  for(const release of log){
+  for(const release of [...log].reverse()){
     let items='';
     for(const ch of release.changes){
       items+='<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px">'
@@ -1188,22 +1188,14 @@ async function renderChangelog(c){
     }
     html+='<div class="card" style="margin-bottom:16px">'
       +'<div class="card-header" style="display:flex;align-items:center;gap:12px">'
-      +'<span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--purple)">v'+release.version+'</span>'
-      +'<span style="font-size:13px;font-weight:500">'+release.label+'</span>'
+      +'<span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--purple)">'+release.commit+'</span>'
       +'<span style="font-size:11px;color:var(--text3);margin-left:auto">'+release.date+'</span>'
       +'</div>'
       +'<div class="card-body" style="padding:8px 16px">'+items+'</div>'
       +'</div>';
   }
   html+='<div style="margin-top:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;font-size:12px;color:var(--text2)">'
-    +'<div style="font-weight:600;margin-bottom:8px;color:var(--text1)">How to add a changelog entry</div>'
-    +'<div style="font-family:var(--mono);background:var(--bg3);padding:10px 12px;border-radius:6px;font-size:11px;line-height:1.8;margin-bottom:8px">'
-    +'sudo python3 /opt/sectrack/tools/bump_version.py</div>'
-    +'<div style="color:var(--text3);line-height:1.7">The script will prompt for:<br>'
-    +'&nbsp;&nbsp;<strong>Bump type:</strong> 1) Patch (3.5.0 → 3.5.1) &nbsp; 2) Minor (3.5.0 → 3.6.0) &nbsp; 3) Major (3.5.0 → 4.0.0)<br>'
-    +'&nbsp;&nbsp;<strong>Label:</strong> Short description of the release (e.g. "Bug fixes and performance")<br>'
-    +'&nbsp;&nbsp;<strong>Changes:</strong> Enter each change one per line &mdash; prefix with <code>+</code> for additions, <code>~</code> for fixes, <code>-</code> for removals. Press Enter twice when done.'
-    +'</div>'
+    +'Changelog entries are generated automatically from commits pushed to <code>main</code> — nothing to configure here.'
     +'</div></div>';
   c.innerHTML=html;
 }
