@@ -8,5 +8,19 @@
         "text": "Fix demo data seeding so delete protection, auto-hide, and the Show demo data toggle actually work"
       }
     ]
+  },
+  {
+    "commit": "ee9a7c0",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Fix engagement finding counts to respect the Show demo data setting"
+      },
+      {
+        "type": "fix",
+        "text": "Fix a navigation race that could leave stale page content on screen, a blocking dialog that made user creation look frozen, and several smaller UI/copy bugs (evidence image label, vulnerability count pluralization, Archived page header, Changelog page copy)"
+      }
+    ]
   }
 ]
