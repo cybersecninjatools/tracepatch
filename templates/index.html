@@ -171,7 +171,7 @@ select option{background:var(--bg3)}
 </div>
 <div class="app">
   <nav class="sidebar">
-    <div class="sidebar-header"><h1>TracePatch</h1><p>Pen Test Remediation &amp; Audit</p><div style="margin-top:6px"><span id="version-badge" style="font-size:10px;font-family:var(--mono);background:#1e1240;color:#c4b5fd;padding:2px 8px;border-radius:100px;border:1px solid #534AB7">&hellip;</span></div></div>
+    <div class="sidebar-header"><h1>TracePatch</h1><p>Pen Test Remediation &amp; Audit</p></div>
     <div class="nav-section">
       <div class="nav-label">Overview</div>
       <div class="nav-item active" data-view="dashboard" onclick="nav('dashboard')">
@@ -303,11 +303,6 @@ async function loadMe(){
     const orgBadge=document.querySelector('.sidebar-header p');
     if(orgBadge)orgBadge.textContent=orgName+' • Pen Test Remediation';
     initIdleTimeout(timeoutMins, warningMins);
-    try{
-      const version=await api('/api/version');
-      const vBadge=document.getElementById('version-badge');
-      if(vBadge)vBadge.textContent=version.commit||'unknown';
-    }catch(e){}
   }catch(e){
     initIdleTimeout(60, 10);
   }
