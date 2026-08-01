@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS engagements (
     vendor TEXT,
     eng_date TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now')),
-    status TEXT NOT NULL DEFAULT 'active'
+    status TEXT NOT NULL DEFAULT 'active',
+    is_demo INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS findings (
@@ -37,7 +38,8 @@ CREATE TABLE IF NOT EXISTS findings (
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
     affected_hosts TEXT,
-    cves TEXT
+    cves TEXT,
+    is_demo INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS activity (
@@ -121,7 +123,8 @@ CREATE TABLE IF NOT EXISTS vuln_scans (
     finding_count INTEGER DEFAULT 0,
     new_count INTEGER DEFAULT 0,
     updated_count INTEGER DEFAULT 0,
-    scope TEXT DEFAULT 'Unspecified'
+    scope TEXT DEFAULT 'Unspecified',
+    is_demo INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS vuln_findings (
@@ -145,7 +148,8 @@ CREATE TABLE IF NOT EXISTS vuln_findings (
     updated_at TEXT DEFAULT (datetime('now')),
     archived INTEGER DEFAULT 0,
     last_scan_filename TEXT,
-    last_scope TEXT
+    last_scope TEXT,
+    is_demo INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS vuln_activity (

@@ -206,6 +206,13 @@ def next_finding_id(db):
         num = 1
     return f'F-{num:03d}'
 
+def _maybe_hide_demo_data(db):
+    """If demo data is currently visible and a real (non-demo) record was just created, hide demo data automatically."""
+    row = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
+    if row and row['value'] == 'true':
+        db.execute("UPDATE app_settings SET value='false' WHERE key='demo_data_visible'")
+        db.commit()
+
 def log_activity(db, finding_id, actor, action):
     db.execute("INSERT INTO activity (finding_id,actor,action) VALUES (?,?,?)",
                (finding_id, actor, action))
@@ -299,6 +306,8 @@ def get_setting(key, default=None):
     if now - _settings_cache_time > 60:
         try:
             db = get_db()
+            demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
+            demo_filter = "" if (demo_visible and demo_visible['value'] == 'true') else " AND is_demo=0"            
             rows = db.execute("SELECT key, value FROM app_settings").fetchall()
             _settings_cache = {r['key']: r['value'] for r in rows}
             _settings_cache_time = now
@@ -737,6 +746,9 @@ def list_findings():
     poam   = request.args.get('poam')
     q = "SELECT f.*, e.name as engagement_name, e.type as engagement_type FROM findings f LEFT JOIN engagements e ON f.engagement_id=e.id WHERE 1=1"
     params = []
+    demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
+    if not (demo_visible and demo_visible['value'] == 'true'):
+        q += " AND f.is_demo=0"
     if status and status != 'All': q += " AND f.status=?"; params.append(status)
     if risk   and risk   != 'All': q += " AND f.risk=?";   params.append(risk)
     if poam == '1': q += " AND f.in_poam=1"
@@ -764,7 +776,9 @@ def create_finding():
     ))
     log_activity(db, fid, actor, 'Finding created')
     db.commit()
+    _maybe_hide_demo_data(db)
     return jsonify({'id': fid}), 201
+
 
 @app.route('/api/findings/<fid>', methods=['GET'])
 def get_finding(fid):
@@ -825,9 +839,11 @@ def delete_finding(fid):
         return jsonify({'error': 'Analysts are not permitted to delete findings'}), 403
     db = get_db()
 
-    row = db.execute("SELECT id FROM findings WHERE id=?", (fid,)).fetchone()
+    row = db.execute("SELECT id, is_demo FROM findings WHERE id=?", (fid,)).fetchone()
     if not row:
         return jsonify({'error': 'Finding not found'}), 404
+    if row['is_demo']:
+        return jsonify({'error': 'This is demo data and cannot be deleted. Go to Settings and turn off "Show demo data" to hide it instead.'}), 403
 
     ev_rows = db.execute("SELECT filename, mime_type FROM evidence_files WHERE finding_id=?", (fid,)).fetchall()
     for ev in ev_rows:
@@ -1033,27 +1049,28 @@ def serve_evidence_file(fid, filename):
 @app.route('/api/stats', methods=['GET'])
 def stats():
     db       = get_db()
-    total    = db.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
-    open_c   = db.execute("SELECT COUNT(*) FROM findings WHERE status='Open'").fetchone()[0]
-    inprog   = db.execute("SELECT COUNT(*) FROM findings WHERE status='In Progress'").fetchone()[0]
-    resolved = db.execute("SELECT COUNT(*) FROM findings WHERE status='Resolved'").fetchone()[0]
-    critical = db.execute("SELECT COUNT(*) FROM findings WHERE risk='Critical'").fetchone()[0]
-    poam_c   = db.execute("SELECT COUNT(*) FROM findings WHERE in_poam=1").fetchone()[0]
+    demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
+    demo_filter = "" if (demo_visible and demo_visible['value'] == 'true') else " AND is_demo=0"
+    total    = db.execute(f"SELECT COUNT(*) FROM findings WHERE 1=1{demo_filter}").fetchone()[0]
+    open_c   = db.execute(f"SELECT COUNT(*) FROM findings WHERE status='Open'{demo_filter}").fetchone()[0]
+    inprog   = db.execute(f"SELECT COUNT(*) FROM findings WHERE status='In Progress'{demo_filter}").fetchone()[0]
+    resolved = db.execute(f"SELECT COUNT(*) FROM findings WHERE status='Resolved'{demo_filter}").fetchone()[0]
+    critical = db.execute(f"SELECT COUNT(*) FROM findings WHERE risk='Critical'{demo_filter}").fetchone()[0]
+    poam_c   = db.execute(f"SELECT COUNT(*) FROM findings WHERE in_poam=1{demo_filter}").fetchone()[0]
     today    = str(date.today())
     COMPLETE_STATUSES = "('Resolved','Risk Accepted','False Positive')"
-    overdue  = db.execute(f"SELECT COUNT(*) FROM findings WHERE status NOT IN {COMPLETE_STATUSES} AND due_date < ?", (today,)).fetchone()[0]
-    risk_accepted    = db.execute("SELECT COUNT(*) FROM findings WHERE status='Risk Accepted'").fetchone()[0]
-    critical_resolved = db.execute(f"SELECT COUNT(*) FROM findings WHERE risk='Critical' AND status IN {COMPLETE_STATUSES}").fetchone()[0]
-    high_resolved     = db.execute(f"SELECT COUNT(*) FROM findings WHERE risk='High' AND status IN {COMPLETE_STATUSES}").fetchone()[0]
-    # Actionable = everything except Informational severity (doesn't count toward progress %)
-    actionable_total    = db.execute("SELECT COUNT(*) FROM findings WHERE risk!='Informational'").fetchone()[0]
-    actionable_resolved = db.execute(f"SELECT COUNT(*) FROM findings WHERE risk!='Informational' AND status IN {COMPLETE_STATUSES}").fetchone()[0]
+    overdue  = db.execute(f"SELECT COUNT(*) FROM findings WHERE status NOT IN {COMPLETE_STATUSES} AND due_date < ?{demo_filter}", (today,)).fetchone()[0]
+    risk_accepted    = db.execute(f"SELECT COUNT(*) FROM findings WHERE status='Risk Accepted'{demo_filter}").fetchone()[0]
+    critical_resolved = db.execute(f"SELECT COUNT(*) FROM findings WHERE risk='Critical' AND status IN {COMPLETE_STATUSES}{demo_filter}").fetchone()[0]
+    high_resolved     = db.execute(f"SELECT COUNT(*) FROM findings WHERE risk='High' AND status IN {COMPLETE_STATUSES}{demo_filter}").fetchone()[0]
+    actionable_total    = db.execute(f"SELECT COUNT(*) FROM findings WHERE risk!='Informational'{demo_filter}").fetchone()[0]
+    actionable_resolved = db.execute(f"SELECT COUNT(*) FROM findings WHERE risk!='Informational' AND status IN {COMPLETE_STATUSES}{demo_filter}").fetchone()[0]
     completion_pct    = round(actionable_resolved / actionable_total * 100) if actionable_total else 0
     by_risk  = {}
     by_risk_resolved = {}
     for r in ['Critical','High','Medium','Low','Informational']:
-        by_risk[r]         = db.execute("SELECT COUNT(*) FROM findings WHERE risk=?", (r,)).fetchone()[0]
-        by_risk_resolved[r]= db.execute(f"SELECT COUNT(*) FROM findings WHERE risk=? AND status IN {COMPLETE_STATUSES}", (r,)).fetchone()[0]
+        by_risk[r]         = db.execute(f"SELECT COUNT(*) FROM findings WHERE risk=?{demo_filter}", (r,)).fetchone()[0]
+        by_risk_resolved[r]= db.execute(f"SELECT COUNT(*) FROM findings WHERE risk=? AND status IN {COMPLETE_STATUSES}{demo_filter}", (r,)).fetchone()[0]
     return jsonify({'total':total,'open':open_c,'in_progress':inprog,'resolved':resolved,
                     'risk_accepted':risk_accepted,'critical':critical,'critical_resolved':critical_resolved,
                     'high_resolved':high_resolved,'completion_pct':completion_pct,
@@ -1815,6 +1832,7 @@ def upload_vuln_scan():
     )
     db.execute("UPDATE vuln_scans SET new_count=?, updated_count=? WHERE id=?", (new_count, updated_count, scan_id))
     db.commit()
+    _maybe_hide_demo_data(db)
     return jsonify({
         'ok': True, 'scan_id': scan_id, 'total_plugins': len(parsed), 'scope': scope,
         'new': new_count, 'updated': updated_count, 'likely_resolved': resolved_count
@@ -1911,6 +1929,9 @@ def list_vuln_findings():
     show_archived = request.args.get('archived', 'false') == 'true'
     q = "SELECT * FROM vuln_findings WHERE archived=?"
     params = [1 if show_archived else 0]
+    demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
+    if not (demo_visible and demo_visible['value'] == 'true'):
+        q += " AND is_demo=0"
     sev = request.args.get('severity')
     status = request.args.get('status')
     if sev and sev != 'All':
@@ -1992,9 +2013,11 @@ def delete_vuln_finding(vid):
         return jsonify({'error': 'Only a master admin can permanently delete a vulnerability. Use Archive instead.'}), 403
     data = request.json or {}
     db = get_db()
-    row = db.execute("SELECT plugin_name FROM vuln_findings WHERE id=?", (vid,)).fetchone()
+    row = db.execute("SELECT plugin_name, is_demo FROM vuln_findings WHERE id=?", (vid,)).fetchone()
     if not row:
         return jsonify({'error': 'Not found'}), 404
+    if row['is_demo']:
+        return jsonify({'error': 'This is demo data and cannot be deleted. Go to Settings and turn off "Show demo data" to hide it instead.'}), 403
     if data.get('confirm_name', '').strip() != row['plugin_name']:
         return jsonify({'error': 'Confirmation text does not match'}), 400
     db.execute("DELETE FROM vuln_hosts WHERE plugin_id=(SELECT plugin_id FROM vuln_findings WHERE id=?)", (vid,))
@@ -2076,28 +2099,27 @@ def get_vuln_host_detail(host_ip):
 @app.route('/api/vuln/stats', methods=['GET'])
 def vuln_stats():
     db = get_db()
-    total = db.execute("SELECT COUNT(*) FROM vuln_findings WHERE archived=0").fetchone()[0]
+    demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
+    demo_filter = "" if (demo_visible and demo_visible['value'] == 'true') else " AND is_demo=0"
+    total = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE archived=0{demo_filter}").fetchone()[0]
     by_sev = {}
     open_by_sev = {}
     for s in ['Critical','High','Medium','Low','Informational']:
-        by_sev[s] = db.execute("SELECT COUNT(*) FROM vuln_findings WHERE severity=? AND archived=0", (s,)).fetchone()[0]
-        open_by_sev[s] = db.execute("SELECT COUNT(*) FROM vuln_findings WHERE severity=? AND status='Open' AND archived=0", (s,)).fetchone()[0]
+        by_sev[s] = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE severity=? AND archived=0{demo_filter}", (s,)).fetchone()[0]
+        open_by_sev[s] = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE severity=? AND status='Open' AND archived=0{demo_filter}", (s,)).fetchone()[0]
     host_count = db.execute("SELECT COUNT(DISTINCT host_ip) FROM vuln_hosts").fetchone()[0]
-    resolved = db.execute("SELECT COUNT(*) FROM vuln_findings WHERE status IN ('Resolved','Patched','Likely Resolved','False Positive','Compensating Control') AND archived=0").fetchone()[0]
-    scan_count = db.execute("SELECT COUNT(*) FROM vuln_scans").fetchone()[0]
+    resolved = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE status IN ('Resolved','Patched','Likely Resolved','False Positive','Compensating Control') AND archived=0{demo_filter}").fetchone()[0]
+    scan_count = db.execute(f"SELECT COUNT(*) FROM vuln_scans WHERE 1=1{demo_filter}").fetchone()[0]
 
     # Actionable = everything except Informational severity (doesn't count toward progress %)
     actionable_total = db.execute("SELECT COUNT(*) FROM vuln_findings WHERE severity!='Informational' AND archived=0").fetchone()[0]
-    actionable_resolved = db.execute(
-        "SELECT COUNT(*) FROM vuln_findings WHERE severity!='Informational' AND status IN ('Resolved','Patched','Likely Resolved','Risk Accepted','False Positive','Compensating Control') AND archived=0"
-    ).fetchone()[0]
+    actionable_total = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE severity!='Informational' AND archived=0{demo_filter}").fetchone()[0]
+    actionable_resolved = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE severity!='Informational' AND status IN ('Resolved','Patched','Likely Resolved','Risk Accepted','False Positive','Compensating Control') AND archived=0{demo_filter}").fetchone()[0]
     completion_pct = round(actionable_resolved / actionable_total * 100) if actionable_total else 0
 
-    scans = db.execute("SELECT id, scan_date, filename, scope FROM vuln_scans ORDER BY scan_date ASC").fetchall()
+    scans = db.execute(f"SELECT id, scan_date, filename, scope FROM vuln_scans WHERE 1=1{demo_filter} ORDER BY scan_date ASC").fetchall()
     last_scan_date = scans[-1]['scan_date'] if scans else None
-    open_criticals = db.execute(
-        "SELECT id, plugin_name, host_count FROM vuln_findings WHERE severity='Critical' AND status='Open' AND archived=0 ORDER BY host_count DESC LIMIT 10"
-    ).fetchall()
+    open_criticals = db.execute(f"SELECT id, plugin_name, host_count FROM vuln_findings WHERE severity='Critical' AND status='Open' AND archived=0{demo_filter} ORDER BY host_count DESC LIMIT 10").fetchall()
     return jsonify({
         'total': total, 'by_severity': by_sev, 'open_by_severity': open_by_sev,
         'host_count': host_count, 'resolved': resolved, 'scan_count': scan_count,
@@ -2109,12 +2131,15 @@ def vuln_stats():
 
 @app.route('/api/vuln/trend', methods=['GET'])
 def vuln_trend():
+
     db = get_db()
     period = request.args.get('period', 'weekly')  # weekly, monthly, yearly
-
+    demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
+    demo_filter = "" if (demo_visible and demo_visible['value'] == 'true') else " AND vs.is_demo=0"
     rows = db.execute(
-        "SELECT snapshot_date, open_critical, open_high, open_medium, open_low, "
-        "resolved_total, total_findings, completion_pct FROM vuln_snapshots ORDER BY snapshot_date ASC"
+        f"SELECT s.snapshot_date, s.open_critical, s.open_high, s.open_medium, s.open_low, "
+        f"s.resolved_total, s.total_findings, s.completion_pct FROM vuln_snapshots s "
+        f"JOIN vuln_scans vs ON s.scan_id=vs.id WHERE 1=1{demo_filter} ORDER BY s.snapshot_date ASC"
     ).fetchall()
 
     if not rows:
