@@ -46,5 +46,15 @@
         "text": "Replace the frozen v3.7.0 sidebar badge (left over from a scrapped semver scheme) with the live build commit hash"
       }
     ]
+  },
+  {
+    "commit": "63aa035",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "remove",
+        "text": "Remove the sidebar version badge (redundant with the Updates page)"
+      }
+    ]
   }
 ]
