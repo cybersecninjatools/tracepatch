@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS users (
     display TEXT,
     role TEXT NOT NULL DEFAULT 'analyst',
     title TEXT,
+    email TEXT,
     created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -206,10 +207,19 @@ CREATE TABLE IF NOT EXISTS vuln_snapshots (
 );
 """
 
+def ensure_column(conn, table, column, decl):
+    """Add a column to an existing table if it's not already there. Safe to
+    call on every startup — CREATE TABLE IF NOT EXISTS only helps fresh
+    databases, this is what lets existing ones pick up new columns too."""
+    cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+
 def main():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(SCHEMA)
+    ensure_column(conn, 'users', 'email', 'TEXT')
     conn.commit()
     conn.close()
     print(f"Database initialized at {DB_PATH}")

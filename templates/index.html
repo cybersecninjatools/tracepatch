@@ -809,7 +809,7 @@ async function renderUsers(c){
   for(const u of users){
     const isElevatedTarget=(u.role==='admin'||u.role==='master_admin');
     const canRemove=u.username!==state.me?.username&&(!isElevatedTarget||masterAdmin);
-    cards+=`<div class="user-card"><div class="user-avatar">${initials(u.display||u.username)}</div><div class="user-info"><div class="uname">${u.display} <span class="role-badge ${u.role}">${u.role.replace('_',' ')}</span></div><div class="utitle">${u.title||'&mdash;'} &middot; <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${u.username}</span></div></div><div class="user-actions"><button class="btn sm" data-username="${u.username}" data-display="${u.display}" data-title="${u.title||''}" data-role="${u.role}" onclick="editUser(this)">Edit</button>${u.username===state.me?.username?'<span style="font-size:11px;color:var(--text3);padding:5px 6px">You</span>':(canRemove?'<button class="btn sm danger" data-username="'+u.username+'" onclick="removeUser(this)">Remove</button>':'<span style="font-size:11px;color:var(--text3);padding:5px 6px">Protected</span>')}</div></div>`;
+    cards+=`<div class="user-card"><div class="user-avatar">${initials(u.display||u.username)}</div><div class="user-info"><div class="uname">${u.display} <span class="role-badge ${u.role}">${u.role.replace('_',' ')}</span></div><div class="utitle">${u.title||'&mdash;'} &middot; <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${u.username}</span>${u.email?' &middot; '+escHtml(u.email):''}</div></div><div class="user-actions"><button class="btn sm" data-username="${u.username}" data-display="${u.display}" data-title="${u.title||''}" data-role="${u.role}" data-email="${escHtml(u.email||'')}" onclick="editUser(this)">Edit</button>${u.username===state.me?.username?'<span style="font-size:11px;color:var(--text3);padding:5px 6px">You</span>':(canRemove?'<button class="btn sm danger" data-username="'+u.username+'" onclick="removeUser(this)">Remove</button>':'<span style="font-size:11px;color:var(--text3);padding:5px 6px">Protected</span>')}</div></div>`;
   }
 
   let roleOpts='<option value="analyst">Analyst</option><option value="auditor">Auditor</option>';
@@ -820,6 +820,7 @@ async function renderUsers(c){
   <div class="card"><div class="card-header"><span class="card-header-title">Add user</span></div><div class="card-body">
     <div class="form-row"><div class="form-group"><label>Username</label><input id="nu-username" placeholder="jsmith"/></div><div class="form-group"><label>Display name</label><input id="nu-display" placeholder="Jane Smith"/></div></div>
     <div class="form-row"><div class="form-group"><label>Job title</label><input id="nu-title" placeholder="IT Analyst"/></div><div class="form-group"><label>Role</label><select id="nu-role">${roleOpts}</select></div></div>
+    <div class="form-row"><div class="form-group"><label>Email <span style="font-size:10px;color:var(--text3)">(optional)</span></label><input type="email" id="nu-email" placeholder="jane.smith@company.com"/><div style="font-size:11px;color:var(--text3);margin-top:3px">For your own records — if they forget their password, reset it here rather than emailing them a link.</div></div><div class="form-group"></div></div>
     <div class="form-row"><div class="form-group"><label>Initial password (min 8 chars)</label><input type="text" id="nu-password" placeholder="Set a temporary password"/><div style="font-size:11px;color:var(--text3);margin-top:3px">Share with the user; they can change it after signing in.</div></div><div class="form-group"></div></div>
     <button class="btn primary" onclick="addUser()">Create user</button>
   </div></div>
@@ -838,13 +839,13 @@ async function addUser(){
   if(!username||!display){alert('Username and display name required.');return;}
   if(password.length<8){alert('Password must be at least 8 characters.');return;}
   try{
-    await api('/api/users',{method:'POST',body:{username,display,password,title:document.getElementById('nu-title').value.trim(),role:document.getElementById('nu-role').value}});
+    await api('/api/users',{method:'POST',body:{username,display,password,title:document.getElementById('nu-title').value.trim(),role:document.getElementById('nu-role').value,email:document.getElementById('nu-email').value.trim()}});
     render();
   }catch(e){alert('Error: '+e.message);}
 }
 
 function editUser(btn){
-  const username=btn.dataset.username,display=btn.dataset.display,title=btn.dataset.title,role=btn.dataset.role;
+  const username=btn.dataset.username,display=btn.dataset.display,title=btn.dataset.title,role=btn.dataset.role,email=btn.dataset.email;
   const masterAdmin=isMasterAdmin();
   let roleOpts='<option value="analyst" '+(role==='analyst'?'selected':'')+'>Analyst</option><option value="auditor" '+(role==='auditor'?'selected':'')+'>Auditor</option>';
   if(masterAdmin){
@@ -852,11 +853,11 @@ function editUser(btn){
   } else if(role==='admin'||role==='master_admin'){
     roleOpts='<option value="'+role+'" selected>'+(role==='master_admin'?'Master Admin':'Admin')+' (only a master admin can change this)</option>';
   }
-  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Edit user &mdash; '+username+'</span><button class="btn sm" onclick="closeModal()">X</button></div><div class="modal-body"><div class="form-group"><label>Display name</label><input id="eu-display" value="'+display+'"/></div><div class="form-group"><label>Job title</label><input id="eu-title" value="'+title+'"/></div><div class="form-group"><label>Role</label><select id="eu-role" '+((role==='admin'||role==='master_admin')&&!masterAdmin?'disabled':'')+'>'+roleOpts+'</select></div><div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px"><label>Reset password <span style="font-size:10px;color:var(--text3)">(leave blank to keep current)</span></label><input type="text" id="eu-password" placeholder="New password (min 8 chars)"/></div></div><div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm primary" onclick="saveUser(\''+username+'\')">Save</button></div>');
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Edit user &mdash; '+username+'</span><button class="btn sm" onclick="closeModal()">X</button></div><div class="modal-body"><div class="form-group"><label>Display name</label><input id="eu-display" value="'+display+'"/></div><div class="form-group"><label>Job title</label><input id="eu-title" value="'+title+'"/></div><div class="form-group"><label>Email <span style="font-size:10px;color:var(--text3)">(optional)</span></label><input type="email" id="eu-email" value="'+email+'" placeholder="jane.smith@company.com"/></div><div class="form-group"><label>Role</label><select id="eu-role" '+((role==='admin'||role==='master_admin')&&!masterAdmin?'disabled':'')+'>'+roleOpts+'</select></div><div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px"><label>Reset password <span style="font-size:10px;color:var(--text3)">(leave blank to keep current)</span></label><input type="text" id="eu-password" placeholder="New password (min 8 chars)"/><div style="font-size:11px;color:var(--text3);margin-top:3px">If they forgot their password, set a new temporary one here and share it with them &mdash; there is no email-reset link.</div></div></div><div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm primary" onclick="saveUser(\''+username+'\')">Save</button></div>');
 }
 
 async function saveUser(username){
-  const body={display:document.getElementById('eu-display').value.trim(),title:document.getElementById('eu-title').value.trim(),role:document.getElementById('eu-role').value};
+  const body={display:document.getElementById('eu-display').value.trim(),title:document.getElementById('eu-title').value.trim(),role:document.getElementById('eu-role').value,email:document.getElementById('eu-email').value.trim()};
   const pw=document.getElementById('eu-password').value;
   if(pw){
     if(pw.length<8){alert('Password must be at least 8 characters.');return;}
@@ -1838,16 +1839,22 @@ function resetIdleTimer(){
   }, _timeoutMs);
 }
 
+function formatIdleCountdown(totalSecs){
+  totalSecs=Math.max(0,totalSecs);
+  const m=Math.floor(totalSecs/60), s=totalSecs%60;
+  return m>0?(m+'m '+s+'s'):(s+'s');
+}
+
 function showIdleWarning(){
   let secsLeft=(_warningMs/1000)|0;
   const warnEl=document.getElementById('idle-warning');
   const cntEl=document.getElementById('idle-countdown');
   if(warnEl){
     warnEl.style.display='flex';
-    if(cntEl)cntEl.textContent=secsLeft+'s';
+    if(cntEl)cntEl.textContent=formatIdleCountdown(secsLeft);
     _idleCountdown=setInterval(()=>{
       secsLeft--;
-      if(cntEl)cntEl.textContent=secsLeft+'s';
+      if(cntEl)cntEl.textContent=formatIdleCountdown(secsLeft);
       if(secsLeft<=0)clearInterval(_idleCountdown);
     },1000);
   }

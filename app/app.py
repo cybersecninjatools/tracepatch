@@ -30,7 +30,7 @@ def get_db_user(username):
     """Look up a user from the SQLite users table. Returns dict or None."""
     db  = get_db()
     row = db.execute(
-        "SELECT username, display, role, title FROM users WHERE username=?",
+        "SELECT username, display, role, title, email FROM users WHERE username=?",
         (username,)
     ).fetchone()
     return dict(row) if row else None
@@ -389,7 +389,7 @@ def enforce_login():
 def list_users():
     db   = get_db()
     rows = db.execute(
-        "SELECT username, display, role, title FROM users ORDER BY username"
+        "SELECT username, display, role, title, email FROM users ORDER BY username"
     ).fetchall()
     return jsonify([dict(r) for r in rows])
 
@@ -408,6 +408,7 @@ def create_user():
     display  = (data.get('display') or '').strip()[:80]
     title    = (data.get('title') or '').strip()[:80]
     role     = data.get('role', 'analyst')
+    email    = (data.get('email') or '').strip()[:120]
 
     if not USERNAME_PAT.match(username):
         return jsonify({'error': 'Username must be 3-32 chars: lowercase letters, numbers, dots, dashes, underscores only'}), 400
@@ -419,14 +420,16 @@ def create_user():
         return jsonify({'error': 'Invalid role'}), 400
     if role in ELEVATED_ROLES and actor.get('role') != 'master_admin':
         return jsonify({'error': 'Only a master admin can assign admin or master admin roles'}), 403
+    if email and not EMAIL_PAT.match(email):
+        return jsonify({'error': 'Invalid email format'}), 400
 
     db = get_db()
     exists = db.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone()
     if exists:
         return jsonify({'error': 'User already exists'}), 409
     db.execute(
-        "INSERT INTO users (username,password_hash,display,role,title) VALUES (?,?,?,?,?)",
-        (username, generate_password_hash(password), display, role, title)
+        "INSERT INTO users (username,password_hash,display,role,title,email) VALUES (?,?,?,?,?,?)",
+        (username, generate_password_hash(password), display, role, title, email)
     )
     db.commit()
     return jsonify({'ok': True, 'username': username}), 201
@@ -450,10 +453,16 @@ def update_user(username):
         if target_is_elevated and actor.get('role') != 'master_admin':
             return jsonify({'error': 'Only a master admin can assign or change admin/master admin roles'}), 403
 
+    if 'email' in data:
+        email = (data['email'] or '').strip()[:120]
+        if email and not EMAIL_PAT.match(email):
+            return jsonify({'error': 'Invalid email format'}), 400
+
     fields, vals = [], []
     if 'display' in data: fields.append('display=?'); vals.append((data['display'] or '').strip()[:80])
     if 'role'    in data: fields.append('role=?');    vals.append(data['role'])
     if 'title'   in data: fields.append('title=?');   vals.append((data['title'] or '').strip()[:80])
+    if 'email'   in data: fields.append('email=?');   vals.append((data['email'] or '').strip()[:120])
     if data.get('password'):
         if len(data['password']) < 8:
             return jsonify({'error': 'Password must be at least 8 characters'}), 400

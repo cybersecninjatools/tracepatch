@@ -60,6 +60,25 @@ Password must be at least 8 characters. This creates a `master_admin` role accou
 Open `http://localhost:5000/login` (or your server's address) and log in with the
 account you just created.
 
+## Recovering a lost password
+
+There is no self-service "forgot password" flow — TracePatch has no outbound
+email capability, so it doesn't send reset links. Instead:
+
+- **Normal users:** any admin can reset their password from Users → Edit →
+  "Reset password". The optional email field on a user's profile is just a
+  contact record for the admin doing the resetting; TracePatch never emails
+  it anything.
+- **A master admin locked out with no other admin available:** run the same
+  script used to create the first admin account, with `--reset`:
+  ```bash
+  docker compose exec tracepatch python3 app/create_admin.py --reset <username> <new_password>
+  ```
+  This requires shell access to the host running the container (the same
+  level of access as `docker compose exec` in step 4), so it's only usable
+  by whoever operates the deployment — which is the point: it's a
+  break-glass path, not something exposed in the app itself.
+
 ## Updating to a new version
 
 The **Updates** page in the app (admin only) compares your running build's
