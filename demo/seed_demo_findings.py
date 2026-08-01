@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Save the 5 corrected demo findings, tied to engagement_id 1."""
+"""Creates the primary demo engagement (if it doesn't already exist) and the 5 corrected demo findings."""
 import sqlite3
 import os
 
 DB_PATH = os.environ.get('SECTRACK_DB', '/opt/sectrack/data/sectrack.db')
+DEMO_ENGAGEMENT_NAME = 'External Penetration Test — Q2 2026'
 
 FINDINGS = [
     {
@@ -51,12 +52,24 @@ def next_finding_id(conn, prefix='F'):
     return f"{prefix}-{n:03d}"
 
 conn = sqlite3.connect(DB_PATH)
+
+row = conn.execute("SELECT id FROM engagements WHERE name=?", (DEMO_ENGAGEMENT_NAME,)).fetchone()
+if row:
+    eng_id = row[0]
+else:
+    cur = conn.execute(
+        "INSERT INTO engagements (name,type,vendor,eng_date,status,is_demo) VALUES (?,?,?,?,?,1)",
+        (DEMO_ENGAGEMENT_NAME, 'External Pen Test', 'Redacted Security Partners', '2026-07-01', 'active')
+    )
+    eng_id = cur.lastrowid
+    print(f"Created demo engagement: {DEMO_ENGAGEMENT_NAME} (id={eng_id})")
+
 for f in FINDINGS:
     fid = next_finding_id(conn)
     conn.execute('''INSERT INTO findings
-        (id,title,description,engagement_id,source_label,risk,status,is_new,owner,due_date,remediation,evidence,affected_hosts,cves,in_poam)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', (
-        fid, f['title'], f['description'], 1, 'demo_pentest_report',
+        (id,title,description,engagement_id,source_label,risk,status,is_new,owner,due_date,remediation,evidence,affected_hosts,cves,in_poam,is_demo)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)''', (
+        fid, f['title'], f['description'], eng_id, 'demo_pentest_report',
         f['risk'], f['status'], 1, f['owner'], '', f['remediation'], '',
         f['affected_hosts'], f['cves'], 1
     ))

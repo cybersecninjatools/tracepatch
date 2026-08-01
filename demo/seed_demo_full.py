@@ -10,7 +10,7 @@ conn = sqlite3.connect(DB_PATH)
 
 # --- Second engagement ---
 cur = conn.execute(
-    "INSERT INTO engagements (name,type,vendor,eng_date,status) VALUES (?,?,?,?,?)",
+    "INSERT INTO engagements (name,type,vendor,eng_date,status,is_demo) VALUES (?,?,?,?,?,1)",
     ('Q3 2026 Internal Network Assessment', 'Internal Assessment', 'In-house Security Team', '2026-07-15', 'active')
 )
 eng2_id = cur.lastrowid
@@ -64,8 +64,8 @@ def next_finding_id(conn, prefix='F'):
 for f in MORE_FINDINGS:
     fid = next_finding_id(conn)
     conn.execute('''INSERT INTO findings
-        (id,title,description,engagement_id,source_label,risk,status,is_new,owner,due_date,remediation,evidence,affected_hosts,cves,in_poam)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', (
+        (id,title,description,engagement_id,source_label,risk,status,is_new,owner,due_date,remediation,evidence,affected_hosts,cves,in_poam,is_demo)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)''', (
         fid, f['title'], f['description'], eng2_id, 'Internal Assessment Q3',
         f['risk'], f['status'], 1, f['owner'], '', f['remediation'], '',
         f['affected_hosts'], f['cves'], 1
@@ -74,7 +74,7 @@ for f in MORE_FINDINGS:
 
 # --- Vuln scan data ---
 cur = conn.execute(
-    "INSERT INTO vuln_scans (filename,scan_date,uploaded_by,finding_count,new_count,updated_count,scope) VALUES (?,?,?,?,?,?,?)",
+    "INSERT INTO vuln_scans (filename,scan_date,uploaded_by,finding_count,new_count,updated_count,scope,is_demo) VALUES (?,?,?,?,?,?,?,1)",
     ('demo_nessus_scan_q3.csv', '2026-07-20', 'Alex Chen', 3, 3, 0, 'Internal Network')
 )
 scan_id = cur.lastrowid
@@ -103,8 +103,8 @@ VULN_FINDINGS = [
 for i, v in enumerate(VULN_FINDINGS, start=1):
     vid = f"V-{i:03d}"
     conn.execute('''INSERT INTO vuln_findings
-        (id,plugin_id,plugin_name,severity,status,owner,description,solution,cves,host_count,last_scan_filename,last_scope)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)''', (
+        (id,plugin_id,plugin_name,severity,status,owner,description,solution,cves,host_count,last_scan_filename,last_scope,is_demo)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1)''', (
         vid, v['plugin_id'], v['plugin_name'], v['severity'], 'Open', 'Unassigned',
         v['description'], v['solution'], v['cves'], v['host_count'],
         'demo_nessus_scan_q3.csv', 'Internal Network'
@@ -134,6 +134,9 @@ for username, display, role, title in USERS:
 SETTINGS = [
     ('org_name', 'Demo Security Corp', 'Organization Name', 'Display name shown throughout the app', 'text'),
     ('max_evidence_file_mb', '20', 'Max Evidence File Size (MB)', 'Maximum upload size for evidence files', 'number'),
+    ('demo_data_visible', 'true', 'Show demo data',
+     'When enabled, synthetic demo data is shown alongside real data. Turns off automatically the first '
+     'time a real (non-demo) finding is created.', 'bool'),
 ]
 for key, value, label, desc, type_ in SETTINGS:
     existing = conn.execute("SELECT key FROM app_settings WHERE key=?", (key,)).fetchone()

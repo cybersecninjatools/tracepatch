@@ -20,23 +20,11 @@ app.config['ORG_ABBREV'] = os.environ.get('SECTRACK_ORG_ABBREV', 'ORG')
 
 
 DB_PATH    = os.environ.get('SECTRACK_DB',    '/opt/sectrack/data/sectrack.db')
-USERS_PATH = os.environ.get('SECTRACK_USERS', '/opt/sectrack/data/users.json')
 UPLOADS_PATH = os.environ.get('SECTRACK_UPLOADS', '/opt/sectrack/uploads')
 
 RISK_ORDER = {'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3, 'Informational': 4}
 
 # ---------- User config helpers ----------
-
-def load_users():
-    """Load users.json. Returns dict keyed by username."""
-    if not os.path.exists(USERS_PATH):
-        return {}
-    with open(USERS_PATH) as f:
-        return json.load(f)
-
-def save_users(users):
-    with open(USERS_PATH, 'w') as f:
-        json.dump(users, f, indent=2)
 
 def get_db_user(username):
     """Look up a user from the SQLite users table. Returns dict or None."""
@@ -119,77 +107,6 @@ def close_db(e=None):
     db = g.pop('db', None)
     if db:
         db.close()
-
-def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    db = sqlite3.connect(DB_PATH)
-    db.executescript('''
-        CREATE TABLE IF NOT EXISTS engagements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            type TEXT NOT NULL,
-            vendor TEXT,
-            eng_date TEXT NOT NULL,
-            created_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS findings (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            description TEXT,
-            engagement_id INTEGER REFERENCES engagements(id),
-            source_label TEXT,
-            risk TEXT NOT NULL DEFAULT 'Medium',
-            status TEXT NOT NULL DEFAULT 'Open',
-            is_new INTEGER DEFAULT 1,
-            owner TEXT DEFAULT 'Unassigned',
-            due_date TEXT,
-            remediation TEXT,
-            evidence TEXT,
-            in_poam INTEGER DEFAULT 0,
-            created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS activity (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            finding_id TEXT REFERENCES findings(id) ON DELETE CASCADE,
-            actor TEXT NOT NULL,
-            action TEXT NOT NULL,
-            ts TEXT DEFAULT (datetime('now'))
-        );
-
-        CREATE TABLE IF NOT EXISTS audit_notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            notes TEXT,
-            updated_by TEXT,
-            updated_at TEXT DEFAULT (datetime('now'))
-        );
-    ''')
-    db.commit()
-    db.close()
-
-    # Seed default users.json if missing
-    if not os.path.exists(USERS_PATH):
-        default_users = {
-            "bob": {
-                "display": "Bob Angelino",
-                "role": "admin",
-                "title": "Sr. IT Security Analyst"
-            },
-            "julian": {
-                "display": "Julian Barraza",
-                "role": "analyst",
-                "title": "Deputy CIO"
-            },
-            "auditor": {
-                "display": "External Auditor",
-                "role": "auditor",
-                "title": "Read-only Access"
-            }
-        }
-        os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
-        save_users(default_users)
 
 def row_to_dict(row):
     return dict(row) if row else None
@@ -2468,5 +2385,4 @@ a:hover{background:#3C3489}</style></head>
 <a href="/">Sign in again</a></div></body></html>''', 200
 
 if __name__ == '__main__':
-    init_db()
     app.run(host='127.0.0.1', port=5000, debug=False)
