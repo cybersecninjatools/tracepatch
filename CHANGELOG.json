@@ -36,5 +36,15 @@
         "text": "Add an optional email field to user accounts for admin contact/records, plus a documented break-glass password reset for a locked-out master admin (create_admin.py --reset)"
       }
     ]
+  },
+  {
+    "commit": "e9ce768",
+    "date": "2026-08-01",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Replace the frozen v3.7.0 sidebar badge (left over from a scrapped semver scheme) with the live build commit hash"
+      }
+    ]
   }
 ]
