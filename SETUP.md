@@ -6,7 +6,7 @@ from a fresh clone to a running instance in a few minutes.
 ## Requirements
 
 - Docker and Docker Compose installed
-- Port 8080 available (or edit `docker-compose.yml` to use a different port)
+- Port 5000 available (or edit `docker-compose.yml` to use a different port)
 
 ## 1. Clone the repository
 
@@ -57,7 +57,7 @@ Password must be at least 8 characters. This creates a `master_admin` role accou
 
 ## 5. Log in
 
-Open `http://localhost:8080/login` (or your server's address) and log in with the
+Open `http://localhost:5000/login` (or your server's address) and log in with the
 account you just created.
 
 ## Updating to a new version
@@ -120,7 +120,7 @@ python3 tools/add_changelog_entry.py --type add --text "Describe the user-facing
 
 - **App won't start / crashes immediately**: check `docker compose logs` — the most
   common cause is a missing `SECTRACK_SECRET` in `.env`.
-- **Can't reach the app in a browser**: confirm port 8080 isn't blocked by a firewall
+- **Can't reach the app in a browser**: confirm port 5000 isn't blocked by a firewall
   or security group, and that `docker compose ps` shows the container as running.
 - **Lost admin access**: run `create_admin.py` again with a new username to create
   a second admin account.
