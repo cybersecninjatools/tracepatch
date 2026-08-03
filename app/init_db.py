@@ -75,6 +75,8 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL DEFAULT 'analyst',
     title TEXT,
     email TEXT,
+    failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+    lockout_until TEXT,
     created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -234,6 +236,10 @@ DEFAULT_SETTINGS = [
      'Days from creation to auto-calculate a due date for a Medium risk finding with no due date set', 'number', 'admin'),
     ('due_date_days_low', '90', 'Low finding due date (days)',
      'Days from creation to auto-calculate a due date for a Low risk finding with no due date set', 'number', 'admin'),
+    ('max_login_attempts', '3', 'Max Login Attempts',
+     'Consecutive failed login attempts allowed for a username before it is temporarily locked out', 'number', 'master_admin'),
+    ('lockout_duration_minutes', '5', 'Lockout Duration (minutes)',
+     'How long a username is locked out after exceeding the max login attempts', 'number', 'master_admin'),
 ]
 
 def main():
@@ -241,6 +247,8 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(SCHEMA)
     ensure_column(conn, 'users', 'email', 'TEXT')
+    ensure_column(conn, 'users', 'failed_login_attempts', 'INTEGER NOT NULL DEFAULT 0')
+    ensure_column(conn, 'users', 'lockout_until', 'TEXT')
     for key, value, label, desc, type_, min_role in DEFAULT_SETTINGS:
         conn.execute(
             "INSERT OR IGNORE INTO app_settings (key, value, label, description, type, min_role) "

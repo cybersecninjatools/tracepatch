@@ -4,7 +4,7 @@ TracePatch - POA&M / Pen Test Remediation Tracker
 Flask backend - no external API calls, all data local
 """
 
-import sqlite3, os, json, csv, io, re, tempfile, uuid
+import sqlite3, os, json, csv, io, re, tempfile, uuid, math
 from datetime import datetime, date, timedelta
 from flask import Flask, request, jsonify, send_file, g, session, redirect
 
@@ -163,6 +163,18 @@ def login_page():
     with open(os.path.join(app.template_folder, 'login.html')) as f:
         return f.read().replace('{{ORG_NAME}}', app.config['ORG_NAME'])
 
+def _parse_lockout_dt(s):
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s, '%Y-%m-%d %H:%M:%S')
+    except (ValueError, TypeError):
+        return None
+
+def _lockout_message(seconds_remaining):
+    minutes = max(1, math.ceil(seconds_remaining / 60))
+    return f"Account locked due to too many failed login attempts. Try again in {minutes} minute{'s' if minutes != 1 else ''}."
+
 @app.route('/api/login', methods=['POST'])
 def api_login():
     from werkzeug.security import check_password_hash
@@ -173,11 +185,33 @@ def api_login():
         return jsonify({'error': 'Username and password required'}), 400
     db  = get_db()
     row = db.execute(
-        "SELECT username, password_hash, display, role FROM users WHERE username=?",
+        "SELECT username, password_hash, display, role, failed_login_attempts, lockout_until FROM users WHERE username=?",
         (username,)
     ).fetchone()
-    if not row or not check_password_hash(row['password_hash'], password):
+    if not row:
         return jsonify({'error': 'Invalid username or password'}), 401
+
+    now = datetime.utcnow()
+    lockout_until = _parse_lockout_dt(row['lockout_until'])
+    if lockout_until and now < lockout_until:
+        return jsonify({'error': _lockout_message((lockout_until - now).total_seconds())}), 403
+
+    if not check_password_hash(row['password_hash'], password):
+        max_attempts    = get_setting_int('max_login_attempts', 3)
+        lockout_minutes = get_setting_int('lockout_duration_minutes', 5)
+        attempts = (row['failed_login_attempts'] or 0) + 1
+        if attempts >= max_attempts:
+            new_lockout = now + timedelta(minutes=lockout_minutes)
+            db.execute("UPDATE users SET failed_login_attempts=?, lockout_until=? WHERE username=?",
+                       (attempts, new_lockout.strftime('%Y-%m-%d %H:%M:%S'), username))
+            db.commit()
+            return jsonify({'error': _lockout_message(lockout_minutes * 60)}), 403
+        db.execute("UPDATE users SET failed_login_attempts=? WHERE username=?", (attempts, username))
+        db.commit()
+        return jsonify({'error': 'Invalid username or password'}), 401
+
+    db.execute("UPDATE users SET failed_login_attempts=0, lockout_until=NULL WHERE username=?", (username,))
+    db.commit()
     session.permanent = True
     session['username'] = username
     return jsonify({'ok': True, 'display': row['display'], 'role': row['role']})
