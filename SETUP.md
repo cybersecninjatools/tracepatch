@@ -90,6 +90,9 @@ email capability, so it doesn't send reset links. Instead:
 The **Updates** page in the app (admin only) compares your running build's
 commit against the latest commit on GitHub's `main` branch and tells you
 whether you're behind — it's a commit checker, not an auto-updater; it never
+
+No credentials are needed to pull updates — the repository is public, so
+`git pull` works for anyone, no key or access request required.
 patches anything for you. When it shows an update is available:
 
 ```bash
