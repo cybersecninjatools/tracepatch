@@ -5,7 +5,7 @@ Flask backend - no external API calls, all data local
 """
 
 import sqlite3, os, json, csv, io, re, tempfile, uuid
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from flask import Flask, request, jsonify, send_file, g, session, redirect
 
 app = Flask(__name__, static_folder='/opt/sectrack/static', template_folder='/opt/sectrack/templates')
@@ -241,6 +241,25 @@ def get_setting_int(key, default=0):
 def get_setting_bool(key, default=False):
     val = get_setting(key, 'false')
     return str(val).lower() in ('true', '1', 'yes')
+
+DUE_DATE_DAYS_SETTING = {
+    'Critical': 'due_date_days_critical',
+    'High':     'due_date_days_high',
+    'Medium':   'due_date_days_medium',
+    'Low':      'due_date_days_low',
+}
+
+def auto_due_date(risk):
+    """Auto-calculate a due date from today based on risk, using the
+    per-risk due_date_days_* settings. Informational (and unknown) risk
+    levels are never auto-dated."""
+    setting_key = DUE_DATE_DAYS_SETTING.get(risk)
+    if not setting_key:
+        return ''
+    days = get_setting_int(setting_key, 0)
+    if days <= 0:
+        return ''
+    return str(date.today() + timedelta(days=days))
 
 # ---------- Routes: settings ----------
 @app.route('/api/settings', methods=['GET'])
@@ -690,7 +709,7 @@ def create_finding():
     data  = request.json
     db    = get_db()
     risk     = data.get('risk','Medium')
-    due_date = data.get('due_date','')
+    due_date = data.get('due_date','') or auto_due_date(risk)
     if risk in ('Critical', 'High') and not due_date and get_setting_bool('require_due_date_high_risk', False):
         return jsonify({'error': 'A due date is required for Critical and High risk findings.'}), 400
     fid   = next_finding_id(db)

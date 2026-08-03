@@ -226,6 +226,14 @@ DEFAULT_SETTINGS = [
      'Owner assigned to a new finding when none is specified', 'text', 'admin'),
     ('require_due_date_high_risk', 'false', 'Require Due Date for High/Critical Risk',
      'Block creating or saving a Critical or High risk finding without a due date', 'bool', 'admin'),
+    ('due_date_days_critical', '15', 'Critical finding due date (days)',
+     'Days from creation to auto-calculate a due date for a Critical risk finding with no due date set', 'number', 'admin'),
+    ('due_date_days_high', '30', 'High finding due date (days)',
+     'Days from creation to auto-calculate a due date for a High risk finding with no due date set', 'number', 'admin'),
+    ('due_date_days_medium', '60', 'Medium finding due date (days)',
+     'Days from creation to auto-calculate a due date for a Medium risk finding with no due date set', 'number', 'admin'),
+    ('due_date_days_low', '90', 'Low finding due date (days)',
+     'Days from creation to auto-calculate a due date for a Low risk finding with no due date set', 'number', 'admin'),
 ]
 
 def main():
@@ -239,6 +247,8 @@ def main():
             "VALUES (?,?,?,?,?,?)",
             (key, value, label, desc, type_, min_role)
         )
+    # Replaced by the per-risk due_date_days_* settings above.
+    conn.execute("DELETE FROM app_settings WHERE key='default_due_date_days'")
     conn.commit()
     conn.close()
     print(f"Database initialized at {DB_PATH}")
