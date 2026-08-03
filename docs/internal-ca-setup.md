@@ -78,3 +78,27 @@ server's internal IP address.
 - If your organization uses Active Directory Certificate Services (AD CS),
   your PKI administrator can typically auto-enroll a certificate through
   Group Policy, or issue one manually via the certificate templates console.
+
+## Troubleshooting
+
+**Nginx shows as running but the port isn't actually reachable:** check with
+`sudo ss -tlnp` to confirm Nginx is genuinely listening on the port you
+configured. If it's not, check `/var/log/nginx/error.log` for a line like
+"using inherited sockets" — this indicates a stale process/socket state,
+usually left over from a prior config change or reload. Force a clean
+restart:
+
+    sudo systemctl stop nginx
+    sudo pkill -9 -f nginx
+    sudo rm -f /run/nginx.pid
+    sudo systemctl start nginx
+
+Then re-check with `ss -tlnp` to confirm the port is now bound.
+
+**Using a bare IP address instead of a hostname:** the examples above use
+a placeholder hostname (`sectrack.yourcompany.internal`). You can use a
+bare IP address (e.g. `server_name 10.0.0.5;`) for quick testing, but a
+real internal hostname is strongly recommended for production — it's more
+stable if the server's IP ever changes, and it's required if you want your
+internal CA to issue a properly-scoped certificate rather than one tied to
+a specific IP address.
