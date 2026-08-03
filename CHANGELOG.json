@@ -96,5 +96,15 @@
         "text": "Fix a crash in the /upload-simple PDF import route caused by a column/value mismatch in the finding insert, and bring it in line with the main import path (default owner setting, auto-calculated due date)"
       }
     ]
+  },
+  {
+    "commit": "30b3346",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Add per-username account lockout: after max_login_attempts (default 3) consecutive failed logins, the account is locked for lockout_duration_minutes (default 5, both configurable by a master admin), with a clear wait-time message and no bypass via a correct password during lockout"
+      }
+    ]
   }
 ]
