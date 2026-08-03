@@ -80,6 +80,12 @@ async function loadReport(){
   }
   try{files=await api('/api/findings/'+fid+'/evidence_files');}catch(e){files=[];}
 
+  let reportClassification='Sensitive / Internal Use Only';
+  try{
+    const settings=await api('/api/settings');
+    reportClassification=(settings.find(s=>s.key==='report_classification')||{}).value||reportClassification;
+  }catch(e){}
+
   let exhibitsHtml='';
   let exhibitNum=1;
   for(const ef of files){
@@ -99,7 +105,7 @@ async function loadReport(){
   root.innerHTML=
     '<div class="header-band">'
       +'<div class="org">{{ORG_NAME}} &mdash; POA&amp;M Finding</div>'
-      +'<div class="sub">Sensitive / Internal Use Only</div>'
+      +'<div class="sub">'+escapeHtml(reportClassification)+'</div>'
     +'</div>'
     +'<table>'
       +'<tr><td class="label">Finding ID</td><td style="font-family:monospace">'+escapeHtml(f.id)+'</td></tr>'

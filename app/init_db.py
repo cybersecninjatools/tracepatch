@@ -215,11 +215,26 @@ def ensure_column(conn, table, column, decl):
     if column not in cols:
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
+DEFAULT_SETTINGS = [
+    ('signer_title', 'IT Security Analyst', 'Signer Title',
+     'Title shown next to the signature line on POA&M reports', 'text', 'admin'),
+    ('report_classification', 'Sensitive / Internal Use Only', 'Report Classification',
+     'Classification label shown on report headers', 'text', 'admin'),
+    ('compliance_framework', 'NIST SP 800-53 Rev 5', 'Compliance Framework',
+     'Framework reference shown on POA&M reports', 'text', 'admin'),
+]
+
 def main():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(SCHEMA)
     ensure_column(conn, 'users', 'email', 'TEXT')
+    for key, value, label, desc, type_, min_role in DEFAULT_SETTINGS:
+        conn.execute(
+            "INSERT OR IGNORE INTO app_settings (key, value, label, description, type, min_role) "
+            "VALUES (?,?,?,?,?,?)",
+            (key, value, label, desc, type_, min_role)
+        )
     conn.commit()
     conn.close()
     print(f"Database initialized at {DB_PATH}")
