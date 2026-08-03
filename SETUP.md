@@ -152,3 +152,6 @@ python3 tools/add_changelog_entry.py --type add --text "Describe the user-facing
   or security group, and that `docker compose ps` shows the container as running.
 - **Lost admin access**: run `create_admin.py` again with a new username to create
   a second admin account.
+- **Nginx shows "active running" but the port isn't reachable**: see the
+  Troubleshooting section in [docs/internal-ca-setup.md](./docs/internal-ca-setup.md)
+  for the "inherited sockets" fix.
