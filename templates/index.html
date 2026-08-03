@@ -277,7 +277,7 @@ async function loadMe(){
     state.me=await api('/api/me');
     document.getElementById('sidebar-user').textContent=state.me.display||state.me.username;
     document.getElementById('sidebar-title').textContent=state.me.title||orgName+' Security';
-    document.getElementById('sidebar-role-badge').innerHTML='<span class="role-badge '+state.me.role+'">'+state.me.role+'</span>';
+    document.getElementById('sidebar-role-badge').innerHTML='<span class="role-badge '+escHtml(state.me.role)+'">'+escHtml(state.me.role)+'</span>';
     if(isAdmin())document.querySelectorAll('.admin-only').forEach(el=>el.style.display='flex');
     if(isAuditor())document.getElementById('topbar-actions').style.display='none';
     try{
@@ -341,7 +341,7 @@ async function render(){
     else if(state.view==='vulndetail')await renderVulnDetail(c);
     else if(state.view==='vulnhosts')await renderVulnHosts(c);
     else if(state.view==='vulnhostdetail')await renderVulnHostDetail(c);
-  }catch(e){c.innerHTML='<div class="empty"><p style="color:#ef4444">Error: '+e.message+'</p></div>';}
+  }catch(e){c.innerHTML='<div class="empty"><p style="color:#ef4444">Error: '+escHtml(e.message)+'</p></div>';}
 }
 
 async function renderDashboard(c){
@@ -352,9 +352,9 @@ async function renderDashboard(c){
   let engRows='';
   for(const e of engagements){
     engRows+=`<tr>
-      <td style="font-weight:500">${e.name}</td>
-      <td><span class="badge informational">${e.type}</span></td>
-      <td style="color:var(--text2)">${e.eng_date}</td>
+      <td style="font-weight:500">${escHtml(e.name)}</td>
+      <td><span class="badge informational">${escHtml(e.type)}</span></td>
+      <td style="color:var(--text2)">${escHtml(e.eng_date)}</td>
       <td>${e.finding_count}</td>
       <td>${isAdmin()?'<button class="btn sm" data-eid="'+e.id+'" onclick="archiveEngagement(this)">Archive</button>':''}</td>
     </tr>`;
@@ -367,7 +367,7 @@ async function renderDashboard(c){
   }
   let acts='';
   for(const a of activity.slice(0,6)){
-    acts+=`<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-text"><strong>${a.finding_id}</strong> ${a.action}<br><span style="font-size:11px;color:var(--text3)">${(a.ts||'').split('T')[0]} &middot; ${a.actor}</span></div></div>`;
+    acts+=`<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-text"><strong>${escHtml(a.finding_id)}</strong> ${escHtml(a.action)}<br><span style="font-size:11px;color:var(--text3)">${(a.ts||'').split('T')[0]} &middot; ${escHtml(a.actor)}</span></div></div>`;
   }
   // Progress bar for overall completion
   const completionPct=stats.completion_pct||0;
@@ -459,7 +459,7 @@ async function renderDashboard(c){
       ${vulnStats.open_criticals && vulnStats.open_criticals.length ? `
       <div style="background:#3f0f0f;border:1px solid #b91c1c;border-radius:var(--radius);padding:12px 14px">
         <div style="font-size:12px;font-weight:600;color:#fca5a5;margin-bottom:8px">Critical vulnerabilities requiring immediate attention</div>
-        ${vulnStats.open_criticals.map(v=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:#fca5a5;cursor:pointer" onclick="openVulnDetail(\''+v.id+'\')"><span>'+v.plugin_name+'</span><span style="color:#fca5a5;opacity:0.7">'+v.host_count+' host'+(v.host_count!==1?'s':'')+'</span></div>').join('')}
+        ${vulnStats.open_criticals.map(v=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:#fca5a5;cursor:pointer" onclick="openVulnDetail(\''+escJsAttr(v.id)+'\')"><span>'+escHtml(v.plugin_name)+'</span><span style="color:#fca5a5;opacity:0.7">'+v.host_count+' host'+(v.host_count!==1?'s':'')+'</span></div>').join('')}
       </div>` : ''}
     </div>
   </div>` : ''}
@@ -486,9 +486,9 @@ function openDeleteEngagement(btn){
   showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500;color:#ef4444">Permanently delete engagement</span><button class="btn sm" onclick="closeModal()">X</button></div>'
     +'<div class="modal-body">'
     +'<div style="background:#3f0f0f;border:1px solid #b91c1c;border-radius:var(--radius);padding:12px 14px;font-size:13px;color:#fca5a5;margin-bottom:16px;line-height:1.6">'
-    +'<strong>This cannot be undone.</strong> Deleting "'+name+'" will permanently remove this engagement, all of its findings, their full activity history, and all attached evidence files. If you want to keep this data but get it out of the way, use <strong>Archive</strong> instead.'
+    +'<strong>This cannot be undone.</strong> Deleting "'+escHtml(name)+'" will permanently remove this engagement, all of its findings, their full activity history, and all attached evidence files. If you want to keep this data but get it out of the way, use <strong>Archive</strong> instead.'
     +'</div>'
-    +'<div class="form-group"><label>Type the engagement name to confirm: <strong>'+name+'</strong></label><input type="text" id="del-eng-confirm" placeholder="'+name+'"></div>'
+    +'<div class="form-group"><label>Type the engagement name to confirm: <strong>'+escHtml(name)+'</strong></label><input type="text" id="del-eng-confirm" placeholder="'+escHtml(name)+'"></div>'
     +'</div>'
     +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm danger" onclick="confirmDeleteEngagement()">Permanently delete</button></div>');
 }
@@ -528,15 +528,15 @@ async function renderFindings(c){
   for(const f of sortedFindings){
     const today=new Date().toISOString().split('T')[0];
     const overdue=f.status!=='Resolved'&&f.status!=='Risk Accepted'&&f.due_date&&f.due_date<today;
-    rows+=`<tr onclick="openFinding('${f.id}')" style="cursor:pointer">
-      <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${f.id}</td>
-      <td style="max-width:220px;font-weight:500">${f.title}</td>
-      <td><span class="badge ${f.risk.toLowerCase()}">${f.risk}</span></td>
-      <td><span class="badge ${f.status.toLowerCase().replace(/ /g,'-')}">${f.status}</span></td>
-      <td style="font-size:11px;color:var(--text2)">${f.source_label||'&mdash;'}</td>
-      <td style="font-size:11px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.affected_hosts||'&mdash;'}</td>
-      <td style="font-size:12px;color:var(--text2)">${f.owner}</td>
-      <td style="font-size:12px;color:${overdue?'#ef4444':'var(--text2)'}">${f.due_date||'&mdash;'}${overdue?' ⚠':''}</td>
+    rows+=`<tr onclick="openFinding('${escJsAttr(f.id)}')" style="cursor:pointer">
+      <td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${escHtml(f.id)}</td>
+      <td style="max-width:220px;font-weight:500">${escHtml(f.title)}</td>
+      <td><span class="badge ${escHtml(f.risk.toLowerCase())}">${escHtml(f.risk)}</span></td>
+      <td><span class="badge ${escHtml(f.status.toLowerCase().replace(/ /g,'-'))}">${escHtml(f.status)}</span></td>
+      <td style="font-size:11px;color:var(--text2)">${escHtml(f.source_label)||'&mdash;'}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.affected_hosts)||'&mdash;'}</td>
+      <td style="font-size:12px;color:var(--text2)">${escHtml(f.owner)}</td>
+      <td style="font-size:12px;color:${overdue?'#ef4444':'var(--text2)'}">${escHtml(f.due_date)||'&mdash;'}${overdue?' ⚠':''}</td>
       <td>${f.in_poam?'<span class="badge poam">Yes</span>':''}</td>
     </tr>`;
   }
@@ -636,7 +636,7 @@ function selectVendor(btn){
 function handlePDFUpload(input){
   const file=input.files[0];if(!file)return;
   const res=document.getElementById('upload-result');
-  res.innerHTML='<div style="padding:12px;margin-top:12px;background:var(--bg3);border-radius:var(--radius)"><p style="color:var(--text2)">'+file.name+' ('+Math.round(file.size/1024)+' KB)</p><div style="margin-top:10px;display:flex;gap:8px"><button id="do-upload-btn" class="btn sm primary">Upload &amp; parse</button><button class="btn sm" onclick="nav(\'upload\')">Cancel</button></div></div>';
+  res.innerHTML='<div style="padding:12px;margin-top:12px;background:var(--bg3);border-radius:var(--radius)"><p style="color:var(--text2)">'+escHtml(file.name)+' ('+Math.round(file.size/1024)+' KB)</p><div style="margin-top:10px;display:flex;gap:8px"><button id="do-upload-btn" class="btn sm primary">Upload &amp; parse</button><button class="btn sm" onclick="nav(\'upload\')">Cancel</button></div></div>';
   document.getElementById('do-upload-btn').addEventListener('click', uploadPDF);
 }
 
@@ -661,7 +661,7 @@ async function uploadPDF(){
     const r=await fetch('/api/upload',{method:'POST',body:form,credentials:'same-origin'});
     data=await r.json();
   }catch(e){
-    res.innerHTML='<p style="color:#ef4444;padding:12px">Upload failed: '+e.message+'</p>';
+    res.innerHTML='<p style="color:#ef4444;padding:12px">Upload failed: '+escHtml(e.message)+'</p>';
     return;
   }
   if(!data.findings||!data.findings.length){
@@ -699,12 +699,12 @@ async function renderPOAM(c){
   for(const risk of['Critical','High','Medium','Low']){
     const fl=byRisk[risk];if(!fl.length)continue;
     let rows='';
-    for(const f of fl)rows+=`<tr onclick="openFinding('${f.id}')"><td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${f.id}</td><td style="font-weight:500">${f.title}</td><td><span class="badge ${f.status.toLowerCase().replace(/ /g,'-')}">${f.status}</span></td><td style="font-size:12px">${f.owner}</td><td style="font-size:12px">${f.due_date||'&mdash;'}</td><td style="font-size:12px">${f.evidence?'<span style="color:#22c55e">&#10003; Present</span>':'<span style="color:#f59e0b">Needed</span>'}</td></tr>`;
+    for(const f of fl)rows+=`<tr onclick="openFinding('${escJsAttr(f.id)}')"><td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${escHtml(f.id)}</td><td style="font-weight:500">${escHtml(f.title)}</td><td><span class="badge ${escHtml(f.status.toLowerCase().replace(/ /g,'-'))}">${escHtml(f.status)}</span></td><td style="font-size:12px">${escHtml(f.owner)}</td><td style="font-size:12px">${escHtml(f.due_date)||'&mdash;'}</td><td style="font-size:12px">${f.evidence?'<span style="color:#22c55e">&#10003; Present</span>':'<span style="color:#f59e0b">Needed</span>'}</td></tr>`;
     html+=`<div class="card"><div class="card-header"><span class="card-header-title"><span class="badge ${risk.toLowerCase()}">${risk}</span> <span style="color:var(--text3)">${fl.length} finding${fl.length>1?'s':''}</span></span></div><table><thead><tr><th>ID</th><th>Finding</th><th>Status</th><th>Owner</th><th>Due</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   if(notInPOAM.length){
     let rows='';
-    for(const f of notInPOAM)rows+=`<tr><td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${f.id}</td><td>${f.title}</td><td><span class="badge ${f.risk.toLowerCase()}">${f.risk}</span></td><td><span class="badge ${f.status.toLowerCase().replace(/ /g,'-')}">${f.status}</span></td><td><button class="btn sm" data-fid="${f.id}" onclick="addToPOAM(this)">Add to POA&amp;M</button></td></tr>`;
+    for(const f of notInPOAM)rows+=`<tr><td style="font-family:var(--mono);font-size:12px;color:var(--text3)">${escHtml(f.id)}</td><td>${escHtml(f.title)}</td><td><span class="badge ${escHtml(f.risk.toLowerCase())}">${escHtml(f.risk)}</span></td><td><span class="badge ${escHtml(f.status.toLowerCase().replace(/ /g,'-'))}">${escHtml(f.status)}</span></td><td><button class="btn sm" data-fid="${escHtml(f.id)}" onclick="addToPOAM(this)">Add to POA&amp;M</button></td></tr>`;
     html+=`<div class="card"><div class="card-header"><span class="card-header-title">Not yet in POA&amp;M</span></div><table><thead><tr><th>ID</th><th>Finding</th><th>Risk</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   c.innerHTML=html;
@@ -729,19 +729,19 @@ async function renderReports(c){
   for(const risk of['Critical','High','Medium','Low','Informational']){
     for(const f of byRisk[risk]){
       const statusColor=f.status==='Resolved'?'color:#16a34a':f.status==='Open'?'color:#b91c1c':'color:#b45309';
-      allRows+='<tr onclick="window.open(\'/finding-report/'+encodeURIComponent(f.id)+'\',\'_blank\')" style="cursor:pointer" title="Click to open this finding as a standalone report in a new tab"><td style="font-weight:600;font-family:var(--mono);font-size:11px;white-space:nowrap">'+f.id+'</td><td style="font-weight:500">'+f.title+'</td><td style="text-align:center"><span class="badge '+f.risk.toLowerCase()+'">'+f.risk+'</span></td><td style="font-size:11px;font-family:var(--mono)">'+(f.affected_hosts||'&mdash;')+'</td><td style="font-size:12px">'+( f.description||'&mdash;')+'</td><td style="font-size:12px">'+(f.remediation||'&mdash;')+'</td><td style="font-size:12px;white-space:nowrap">'+(f.due_date||'&mdash;')+'</td><td style="font-size:12px;'+statusColor+';font-weight:500"><span class="badge '+f.status.toLowerCase().replace(/ /g,'-')+'">'+f.status+'</span></td><td style="font-size:12px">'+f.owner+'</td><td style="font-size:12px">'+(f.evidence||'&mdash;')+'</td></tr>';
+      allRows+='<tr onclick="window.open(\'/finding-report/'+encodeURIComponent(f.id)+'\',\'_blank\')" style="cursor:pointer" title="Click to open this finding as a standalone report in a new tab"><td style="font-weight:600;font-family:var(--mono);font-size:11px;white-space:nowrap">'+escHtml(f.id)+'</td><td style="font-weight:500">'+escHtml(f.title)+'</td><td style="text-align:center"><span class="badge '+escHtml(f.risk.toLowerCase())+'">'+escHtml(f.risk)+'</span></td><td style="font-size:11px;font-family:var(--mono)">'+(escHtml(f.affected_hosts)||'&mdash;')+'</td><td style="font-size:12px">'+(escHtml(f.description)||'&mdash;')+'</td><td style="font-size:12px">'+(escHtml(f.remediation)||'&mdash;')+'</td><td style="font-size:12px;white-space:nowrap">'+(escHtml(f.due_date)||'&mdash;')+'</td><td style="font-size:12px;'+statusColor+';font-weight:500"><span class="badge '+escHtml(f.status.toLowerCase().replace(/ /g,'-'))+'">'+escHtml(f.status)+'</span></td><td style="font-size:12px">'+escHtml(f.owner)+'</td><td style="font-size:12px">'+(escHtml(f.evidence)||'&mdash;')+'</td></tr>';
     }
   }
-  c.innerHTML='<div class="poam-header" style="margin-bottom:20px;padding-bottom:16px;border-bottom:3px solid #1a3a5c"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:20px;font-weight:700;color:#1a3a5c">'+orgName+'</div><div style="font-size:15px;font-weight:500;margin-top:4px">Plan of Action &amp; Milestones (POA&amp;M)</div><div style="font-size:12px;color:#555;margin-top:4px">'+complianceFramework+'</div></div><div style="text-align:right;font-size:11px;color:#555"><div><strong>Report Date:</strong> '+today+'</div><div><strong>Classification:</strong> '+reportClassification+'</div><div><strong>Prepared by:</strong> IT Security</div></div></div></div>'
+  c.innerHTML='<div class="poam-header" style="margin-bottom:20px;padding-bottom:16px;border-bottom:3px solid #1a3a5c"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:20px;font-weight:700;color:#1a3a5c">'+escHtml(orgName)+'</div><div style="font-size:15px;font-weight:500;margin-top:4px">Plan of Action &amp; Milestones (POA&amp;M)</div><div style="font-size:12px;color:#555;margin-top:4px">'+escHtml(complianceFramework)+'</div></div><div style="text-align:right;font-size:11px;color:#555"><div><strong>Report Date:</strong> '+today+'</div><div><strong>Classification:</strong> '+escHtml(reportClassification)+'</div><div><strong>Prepared by:</strong> IT Security</div></div></div></div>'
   +'<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"><button class="btn primary" onclick="window.print()">Print / Save PDF</button><button class="btn" onclick="exportCSV(true)">Export POA&amp;M CSV</button><button class="btn" onclick="exportCSV(false)">Export all CSV</button></div>'
   +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px"><div class="metric"><div class="label">Total POA&amp;M items</div><div class="value">'+findings.length+'</div></div><div class="metric"><div class="label">Open / In Progress</div><div class="value" style="color:#ef4444">'+(stats.open+stats.in_progress)+'</div></div><div class="metric"><div class="label">Resolved</div><div class="value" style="color:#22c55e">'+stats.resolved+'</div><div class="sub">'+pct+'% rate</div></div><div class="metric"><div class="label">Overdue</div><div class="value" style="color:'+(stats.overdue>0?'#ef4444':'inherit')+'">'+stats.overdue+'</div></div></div>'
   +'<div class="card"><div class="card-header"><span class="card-header-title">POA&amp;M Findings Table</span><span style="font-size:12px;color:var(--text3)">As of '+today+' &mdash; '+findings.length+' items</span></div><div style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Weakness / Finding</th><th>Risk</th><th>Affected Systems</th><th>Description</th><th>Remediation Plan</th><th>Scheduled Completion</th><th>Status</th><th>Responsible Party</th><th>Evidence / Closure Notes</th></tr></thead><tbody>'+(allRows||'<tr><td colspan="10" style="text-align:center;padding:20px">No findings in POA&M.</td></tr>')+'</tbody></table></div></div>'
   +'<div class="card"><div class="card-header"><span class="card-header-title">Analyst Notes</span></div><div class="card-body">'
-  +'<div id="audit-notes-display" style="min-height:60px;font-size:13px;color:var(--text2);white-space:pre-wrap;line-height:1.6">'+(notesData.notes||'<span style="color:var(--text3)">No notes entered.</span>')+'</div>'
-  +'<textarea id="audit-notes-txt" style="min-height:120px;width:100%;margin-top:12px" placeholder="Add notes for the auditor package...">'+(notesData.notes||'')+'</textarea>'
+  +'<div id="audit-notes-display" style="min-height:60px;font-size:13px;color:var(--text2);white-space:pre-wrap;line-height:1.6">'+(escHtml(notesData.notes)||'<span style="color:var(--text3)">No notes entered.</span>')+'</div>'
+  +'<textarea id="audit-notes-txt" style="min-height:120px;width:100%;margin-top:12px" placeholder="Add notes for the auditor package...">'+escHtml(notesData.notes)+'</textarea>'
   +'<div style="margin-top:8px"><button class="btn sm primary" onclick="saveNotes()">Save notes</button></div>'
   +'</div></div>'
-  +'<div class="card"><div class="card-header"><span class="card-header-title">Certification Statement</span></div><div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">I hereby certify that the information contained in this Plan of Action and Milestones accurately represents the current security posture and remediation status of the '+orgName+' information systems as of the date indicated above.<div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:40px"><div><div style="border-bottom:1px solid var(--border2);margin-bottom:4px;height:32px"></div><div style="font-size:11px">Signature &mdash; '+signerTitle+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Date: _______________</div></div><div><div style="border-bottom:1px solid var(--border2);margin-bottom:4px;height:32px"></div><div style="font-size:11px">Signature &mdash; CIO / Authorizing Official</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Date: _______________</div></div></div></div></div>'
+  +'<div class="card"><div class="card-header"><span class="card-header-title">Certification Statement</span></div><div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">I hereby certify that the information contained in this Plan of Action and Milestones accurately represents the current security posture and remediation status of the '+escHtml(orgName)+' information systems as of the date indicated above.<div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:40px"><div><div style="border-bottom:1px solid var(--border2);margin-bottom:4px;height:32px"></div><div style="font-size:11px">Signature &mdash; '+escHtml(signerTitle)+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Date: _______________</div></div><div><div style="border-bottom:1px solid var(--border2);margin-bottom:4px;height:32px"></div><div style="font-size:11px">Signature &mdash; CIO / Authorizing Official</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Date: _______________</div></div></div></div></div>'
   +'<div id="exhibit-section"></div>';
   loadExhibits(findings);
 }
@@ -762,9 +762,9 @@ async function loadExhibits(findings){
         const pageLabel=isPdf&&pages.length>1?' (page '+(pIdx+1)+' of '+pages.length+')':'';
         html+='<div class="exhibit-page" style="page-break-before:always;padding:20px 0">'
           +'<div style="font-size:11px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Exhibit '+exhibitNum+'</div>'
-          +'<div style="font-size:13px;font-weight:500;margin-bottom:2px">'+f.id+' &mdash; '+f.title+'</div>'
-          +'<div style="font-size:11px;color:#555;margin-bottom:12px">Evidence file: '+ef.orig_name+pageLabel+' &mdash; Uploaded by '+ef.uploaded_by+' on '+(ef.uploaded_at||'').split('T')[0]+'</div>'
-          +'<img src="'+pageUrl+'" alt="'+ef.orig_name+'" style="max-width:100%;max-height:75vh;object-fit:contain;display:block;border:1px solid #ccc">'
+          +'<div style="font-size:13px;font-weight:500;margin-bottom:2px">'+escHtml(f.id)+' &mdash; '+escHtml(f.title)+'</div>'
+          +'<div style="font-size:11px;color:#555;margin-bottom:12px">Evidence file: '+escHtml(ef.orig_name)+pageLabel+' &mdash; Uploaded by '+escHtml(ef.uploaded_by)+' on '+(ef.uploaded_at||'').split('T')[0]+'</div>'
+          +'<img src="'+pageUrl+'" alt="'+escHtml(ef.orig_name)+'" style="max-width:100%;max-height:75vh;object-fit:contain;display:block;border:1px solid #ccc">'
           +'</div>';
         exhibitNum++;
       });
@@ -782,7 +782,7 @@ async function saveNotes(){
   const notes=document.getElementById('audit-notes-txt').value;
   await api('/api/audit_notes',{method:'POST',body:{notes}});
   const disp=document.getElementById('audit-notes-display');
-  if(disp) disp.innerHTML=notes||'<span style="color:var(--text3)">No notes entered.</span>';
+  if(disp) disp.innerHTML=escHtml(notes)||'<span style="color:var(--text3)">No notes entered.</span>';
   alert('Saved.');
 }
 function exportCSV(poamOnly){window.location.href='/api/export/csv'+(poamOnly?'?poam=1':'');}
@@ -812,7 +812,7 @@ async function renderUsers(c){
   for(const u of users){
     const isElevatedTarget=(u.role==='admin'||u.role==='master_admin');
     const canRemove=u.username!==state.me?.username&&(!isElevatedTarget||masterAdmin);
-    cards+=`<div class="user-card"><div class="user-avatar">${initials(u.display||u.username)}</div><div class="user-info"><div class="uname">${u.display} <span class="role-badge ${u.role}">${u.role.replace('_',' ')}</span></div><div class="utitle">${u.title||'&mdash;'} &middot; <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${u.username}</span>${u.email?' &middot; '+escHtml(u.email):''}</div></div><div class="user-actions"><button class="btn sm" data-username="${u.username}" data-display="${u.display}" data-title="${u.title||''}" data-role="${u.role}" data-email="${escHtml(u.email||'')}" onclick="editUser(this)">Edit</button>${u.username===state.me?.username?'<span style="font-size:11px;color:var(--text3);padding:5px 6px">You</span>':(canRemove?'<button class="btn sm danger" data-username="'+u.username+'" onclick="removeUser(this)">Remove</button>':'<span style="font-size:11px;color:var(--text3);padding:5px 6px">Protected</span>')}</div></div>`;
+    cards+=`<div class="user-card"><div class="user-avatar">${escHtml(initials(u.display||u.username))}</div><div class="user-info"><div class="uname">${escHtml(u.display)} <span class="role-badge ${escHtml(u.role)}">${escHtml(u.role.replace('_',' '))}</span></div><div class="utitle">${escHtml(u.title)||'&mdash;'} &middot; <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${escHtml(u.username)}</span>${u.email?' &middot; '+escHtml(u.email):''}</div></div><div class="user-actions"><button class="btn sm" data-username="${escHtml(u.username)}" data-display="${escHtml(u.display)}" data-title="${escHtml(u.title||'')}" data-role="${escHtml(u.role)}" data-email="${escHtml(u.email||'')}" onclick="editUser(this)">Edit</button>${u.username===state.me?.username?'<span style="font-size:11px;color:var(--text3);padding:5px 6px">You</span>':(canRemove?'<button class="btn sm danger" data-username="'+escHtml(u.username)+'" onclick="removeUser(this)">Remove</button>':'<span style="font-size:11px;color:var(--text3);padding:5px 6px">Protected</span>')}</div></div>`;
   }
 
   let roleOpts='<option value="analyst">Analyst</option><option value="auditor">Auditor</option>';
@@ -833,6 +833,17 @@ async function renderUsers(c){
 function escHtml(s){
   if(s===null||s===undefined)return '';
   return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// For user-controlled text embedded as a single-quoted JS string literal inside
+// an onclick="..." attribute, e.g. onclick="fn('${escJsAttr(x)}')". escHtml()
+// alone is not enough here: the browser HTML-decodes the attribute value before
+// handing it to the JS parser, so an entity-encoded quote (&#39;) still becomes
+// a raw ' by the time it reaches the JS string — this escapes the quote for the
+// JS layer *and* the surrounding HTML attribute.
+function escJsAttr(s){
+  return String(s===null||s===undefined?'':s)
+    .replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')
+    .replace(/\n/g,'\\n').replace(/\r/g,'').replace(/</g,'\\x3C');
 }
 
 async function addUser(){
@@ -856,7 +867,7 @@ function editUser(btn){
   } else if(role==='admin'||role==='master_admin'){
     roleOpts='<option value="'+role+'" selected>'+(role==='master_admin'?'Master Admin':'Admin')+' (only a master admin can change this)</option>';
   }
-  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Edit user &mdash; '+username+'</span><button class="btn sm" onclick="closeModal()">X</button></div><div class="modal-body"><div class="form-group"><label>Display name</label><input id="eu-display" value="'+display+'"/></div><div class="form-group"><label>Job title</label><input id="eu-title" value="'+title+'"/></div><div class="form-group"><label>Email <span style="font-size:10px;color:var(--text3)">(optional)</span></label><input type="email" id="eu-email" value="'+email+'" placeholder="jane.smith@company.com"/></div><div class="form-group"><label>Role</label><select id="eu-role" '+((role==='admin'||role==='master_admin')&&!masterAdmin?'disabled':'')+'>'+roleOpts+'</select></div><div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px"><label>Reset password <span style="font-size:10px;color:var(--text3)">(leave blank to keep current)</span></label><input type="text" id="eu-password" placeholder="New password (min 8 chars)"/><div style="font-size:11px;color:var(--text3);margin-top:3px">If they forgot their password, set a new temporary one here and share it with them &mdash; there is no email-reset link.</div></div></div><div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm primary" onclick="saveUser(\''+username+'\')">Save</button></div>');
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Edit user &mdash; '+escHtml(username)+'</span><button class="btn sm" onclick="closeModal()">X</button></div><div class="modal-body"><div class="form-group"><label>Display name</label><input id="eu-display" value="'+escHtml(display)+'"/></div><div class="form-group"><label>Job title</label><input id="eu-title" value="'+escHtml(title)+'"/></div><div class="form-group"><label>Email <span style="font-size:10px;color:var(--text3)">(optional)</span></label><input type="email" id="eu-email" value="'+escHtml(email)+'" placeholder="jane.smith@company.com"/></div><div class="form-group"><label>Role</label><select id="eu-role" '+((role==='admin'||role==='master_admin')&&!masterAdmin?'disabled':'')+'>'+roleOpts+'</select></div><div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px"><label>Reset password <span style="font-size:10px;color:var(--text3)">(leave blank to keep current)</span></label><input type="text" id="eu-password" placeholder="New password (min 8 chars)"/><div style="font-size:11px;color:var(--text3);margin-top:3px">If they forgot their password, set a new temporary one here and share it with them &mdash; there is no email-reset link.</div></div></div><div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm primary" onclick="saveUser(\''+escJsAttr(username)+'\')">Save</button></div>');
 }
 
 async function saveUser(username){
@@ -883,10 +894,10 @@ function openApproveRequest(btn){
   const masterAdmin=isMasterAdmin();
   let roleOpts='<option value="analyst" '+(role==='analyst'?'selected':'')+'>Analyst</option><option value="auditor" '+(role==='auditor'?'selected':'')+'>Auditor</option>';
   if(masterAdmin)roleOpts+='<option value="admin">Admin</option><option value="master_admin">Master Admin</option>';
-  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Approve request &mdash; '+username+'</span><button class="btn sm" onclick="closeModal()">X</button></div>'
+  showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Approve request &mdash; '+escHtml(username)+'</span><button class="btn sm" onclick="closeModal()">X</button></div>'
     +'<div class="modal-body">'
     +'<div class="form-group"><label>Role to grant</label><select id="ar-role">'+roleOpts+'</select></div>'
-    +'<div class="form-group"><label>Set initial password (min 8 chars)</label><input type="text" id="ar-password" placeholder="Temporary password for '+display+'"/></div>'
+    +'<div class="form-group"><label>Set initial password (min 8 chars)</label><input type="text" id="ar-password" placeholder="Temporary password for '+escHtml(display)+'"/></div>'
     +'</div>'
     +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm primary" onclick="confirmApproveRequest('+reqId+')">Approve &amp; create account</button></div>');
 }
@@ -923,8 +934,8 @@ async function openFindingReport(id){
       const pageLabel=isPdf&&pages.length>1?' (page '+(pIdx+1)+' of '+pages.length+')':'';
       exhibitsHtml+='<div style="margin-top:24px;padding-top:16px;border-top:1px solid #333">'
         +'<div style="font-size:11px;font-weight:600;color:#93c5fd;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">Exhibit '+exhibitNum+'</div>'
-        +'<div style="font-size:11px;color:#888;margin-bottom:10px">Evidence file: '+ef.orig_name+pageLabel+' &mdash; Uploaded by '+ef.uploaded_by+' on '+(ef.uploaded_at||'').split('T')[0]+'</div>'
-        +'<img src="'+pageUrl+'" alt="'+ef.orig_name+'" style="max-width:100%;max-height:600px;object-fit:contain;display:block;border:1px solid #444;border-radius:4px">'
+        +'<div style="font-size:11px;color:#888;margin-bottom:10px">Evidence file: '+escHtml(ef.orig_name)+pageLabel+' &mdash; Uploaded by '+escHtml(ef.uploaded_by)+' on '+(ef.uploaded_at||'').split('T')[0]+'</div>'
+        +'<img src="'+pageUrl+'" alt="'+escHtml(ef.orig_name)+'" style="max-width:100%;max-height:600px;object-fit:contain;display:block;border:1px solid #444;border-radius:4px">'
         +'</div>';
       exhibitNum++;
     });
@@ -936,20 +947,20 @@ async function openFindingReport(id){
     +'<div class="modal-body" style="max-width:100%">'
     +'<div style="background:#fff;color:#111;padding:24px;border-radius:6px;font-family:Arial,sans-serif">'
     +'<div style="border-bottom:3px solid #1a3a5c;padding-bottom:10px;margin-bottom:16px">'
-    +'<div style="font-size:11px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.05em">'+orgName+' &mdash; POA&amp;M Finding</div>'
+    +'<div style="font-size:11px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.05em">'+escHtml(orgName)+' &mdash; POA&amp;M Finding</div>'
     +'</div>'
     +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
-    +'<tr><td style="'+td1+';width:140px">Finding ID</td><td style="'+td2+';font-family:monospace">'+f.id+'</td></tr>'
-    +'<tr><td style="'+td1+'">Weakness / Finding</td><td style="'+td2+';font-weight:500">'+f.title+'</td></tr>'
-    +'<tr><td style="'+td1+'">Risk</td><td style="'+td2+'"><span style="display:inline-block;padding:2px 8px;border-radius:3px;background:#eee;border:1px solid #999;font-size:11px;color:#111">'+f.risk+'</span></td></tr>'
-    +'<tr><td style="'+td1+'">Affected Systems</td><td style="'+td2+';font-family:monospace;font-size:11px">'+(f.affected_hosts||'&mdash;')+'</td></tr>'
-    +'<tr><td style="'+td1+'">CVEs</td><td style="'+td2+';font-size:11px">'+(f.cves||'&mdash;')+'</td></tr>'
-    +'<tr><td style="'+td1+'">Description</td><td style="'+td2+'">'+(f.description||'&mdash;')+'</td></tr>'
-    +'<tr><td style="'+td1+'">Remediation Plan</td><td style="'+td2+'">'+(f.remediation||'&mdash;')+'</td></tr>'
-    +'<tr><td style="'+td1+'">Scheduled Completion</td><td style="'+td2+'">'+(f.due_date||'&mdash;')+'</td></tr>'
-    +'<tr><td style="'+td1+'">Status</td><td style="'+td2+'"><span style="color:'+statusColor+';font-weight:600">'+f.status+'</span></td></tr>'
-    +'<tr><td style="'+td1+'">Responsible Party</td><td style="'+td2+'">'+f.owner+'</td></tr>'
-    +'<tr><td style="'+td1+'">Evidence / Closure Notes</td><td style="'+td2+'">'+(f.evidence||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+';width:140px">Finding ID</td><td style="'+td2+';font-family:monospace">'+escHtml(f.id)+'</td></tr>'
+    +'<tr><td style="'+td1+'">Weakness / Finding</td><td style="'+td2+';font-weight:500">'+escHtml(f.title)+'</td></tr>'
+    +'<tr><td style="'+td1+'">Risk</td><td style="'+td2+'"><span style="display:inline-block;padding:2px 8px;border-radius:3px;background:#eee;border:1px solid #999;font-size:11px;color:#111">'+escHtml(f.risk)+'</span></td></tr>'
+    +'<tr><td style="'+td1+'">Affected Systems</td><td style="'+td2+';font-family:monospace;font-size:11px">'+(escHtml(f.affected_hosts)||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+'">CVEs</td><td style="'+td2+';font-size:11px">'+(escHtml(f.cves)||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+'">Description</td><td style="'+td2+'">'+(escHtml(f.description)||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+'">Remediation Plan</td><td style="'+td2+'">'+(escHtml(f.remediation)||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+'">Scheduled Completion</td><td style="'+td2+'">'+(escHtml(f.due_date)||'&mdash;')+'</td></tr>'
+    +'<tr><td style="'+td1+'">Status</td><td style="'+td2+'"><span style="color:'+statusColor+';font-weight:600">'+escHtml(f.status)+'</span></td></tr>'
+    +'<tr><td style="'+td1+'">Responsible Party</td><td style="'+td2+'">'+escHtml(f.owner)+'</td></tr>'
+    +'<tr><td style="'+td1+'">Evidence / Closure Notes</td><td style="'+td2+'">'+(escHtml(f.evidence)||'&mdash;')+'</td></tr>'
     +'</table>'
     +(exhibitsHtml?'<div style="margin-top:20px"><div style="font-size:12px;font-weight:600;color:#1a3a5c;text-transform:uppercase;letter-spacing:0.05em;border-top:2px solid #1a3a5c;padding-top:10px">Exhibit Index</div></div>':'')
     +'</div>'
@@ -965,32 +976,32 @@ async function openFinding(id){
   let riskOpts='',statusOpts='',ownerOpts='',newOpts='',poamOpts='';
   for(const r of RISK_LEVELS)riskOpts+='<option '+(f.risk===r?'selected':'')+'>'+r+'</option>';
   for(const s of STATUSES)statusOpts+='<option '+(f.status===s?'selected':'')+'>'+s+'</option>';
-  for(const s of STAFF)ownerOpts+='<option '+(f.owner===s?'selected':'')+'>'+s+'</option>';
+  for(const s of STAFF)ownerOpts+='<option '+(f.owner===s?'selected':'')+'>'+escHtml(s)+'</option>';
   newOpts='<option value="0" '+(f.is_new?'':'selected')+'>Existing/recurring</option><option value="1" '+(f.is_new?'selected':'')+'>New finding</option>';
   poamOpts='<option value="0" '+(f.in_poam?'':'selected')+'>No</option><option value="1" '+(f.in_poam?'selected':'')+'>Yes</option>';
   let hist='';
-  for(const h of(f.history||[]))hist+='<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-text"><strong>'+h.actor+'</strong> &mdash; '+h.action+'<br><span style="font-size:11px;color:var(--text3)">'+(h.ts||'').split('T')[0]+'</span></div></div>';
-  showModal(`<div class="modal-header"><div><div style="font-size:11px;font-family:var(--mono);color:var(--text3)">${f.id}</div><div style="font-size:15px;font-weight:500">${f.title}</div></div><button class="btn sm" onclick="closeModal()">X</button></div>
+  for(const h of(f.history||[]))hist+='<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-text"><strong>'+escHtml(h.actor)+'</strong> &mdash; '+escHtml(h.action)+'<br><span style="font-size:11px;color:var(--text3)">'+(h.ts||'').split('T')[0]+'</span></div></div>';
+  showModal(`<div class="modal-header"><div><div style="font-size:11px;font-family:var(--mono);color:var(--text3)">${escHtml(f.id)}</div><div style="font-size:15px;font-weight:500">${escHtml(f.title)}</div></div><button class="btn sm" onclick="closeModal()">X</button></div>
   <div class="modal-body">
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"><span class="badge ${f.risk.toLowerCase()}">${f.risk}</span><span class="badge ${f.status.toLowerCase().replace(/ /g,'-')}">${f.status}</span>${f.in_poam?'<span class="badge poam">In POA&M</span>':''}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"><span class="badge ${escHtml(f.risk.toLowerCase())}">${escHtml(f.risk)}</span><span class="badge ${escHtml(f.status.toLowerCase().replace(/ /g,'-'))}">${escHtml(f.status)}</span>${f.in_poam?'<span class="badge poam">In POA&M</span>':''}</div>
     <div class="form-row"><div class="form-group"><label>Risk</label><select id="ed-risk" ${dis}>${riskOpts}</select></div><div class="form-group"><label>Status</label><select id="ed-status" ${dis}>${statusOpts}</select></div></div>
-    <div class="form-row"><div class="form-group"><label>Owner</label><select id="ed-owner" ${dis}>${ownerOpts}</select></div><div class="form-group"><label>Due date</label><input type="date" id="ed-due" value="${f.due_date||''}" ${dis}></div></div>
-    <div class="form-group"><label>Affected systems / hosts</label><div style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:var(--text2);min-height:36px">${f.affected_hosts||'&mdash;'}</div></div>
-    <div class="form-group"><label>CVEs</label><div style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:#93c5fd;min-height:36px">${f.cves||'&mdash;'}</div></div>
-    <div class="form-group"><label>Description</label><textarea id="ed-desc" ${dis}>${f.description||''}</textarea></div>
-    <div class="form-group"><label>Remediation plan</label><textarea id="ed-rem" ${dis}>${f.remediation||''}</textarea></div>
-    <div class="form-group"><label>Evidence / closure notes</label><textarea id="ed-ev" ${dis}>${f.evidence||''}</textarea></div>
+    <div class="form-row"><div class="form-group"><label>Owner</label><select id="ed-owner" ${dis}>${ownerOpts}</select></div><div class="form-group"><label>Due date</label><input type="date" id="ed-due" value="${escHtml(f.due_date||'')}" ${dis}></div></div>
+    <div class="form-group"><label>Affected systems / hosts</label><div style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:var(--text2);min-height:36px">${escHtml(f.affected_hosts)||'&mdash;'}</div></div>
+    <div class="form-group"><label>CVEs</label><div style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;font-family:var(--mono);color:#93c5fd;min-height:36px">${escHtml(f.cves)||'&mdash;'}</div></div>
+    <div class="form-group"><label>Description</label><textarea id="ed-desc" ${dis}>${escHtml(f.description||'')}</textarea></div>
+    <div class="form-group"><label>Remediation plan</label><textarea id="ed-rem" ${dis}>${escHtml(f.remediation||'')}</textarea></div>
+    <div class="form-group"><label>Evidence / closure notes</label><textarea id="ed-ev" ${dis}>${escHtml(f.evidence||'')}</textarea></div>
     <div class="form-group">
       <label>Evidence images <span style="font-size:10px;color:var(--text3)">(JPEG, PNG, GIF, WebP, or PDF &mdash; click to enlarge)</span></label>
-      <div class="evidence-grid" id="evidence-grid-${f.id}"></div>
+      <div class="evidence-grid" id="evidence-grid-${escHtml(f.id)}"></div>
     </div>
     <div class="form-row"><div class="form-group"><label>Finding type</label><select id="ed-isnew" ${dis}>${newOpts}</select></div><div class="form-group"><label>In POA&amp;M</label><select id="ed-poam" ${dis}>${poamOpts}</select></div></div>
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)"><div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Activity history</div>${hist}</div>
   </div>
   <div class="modal-footer">
-    ${canEdit&&isAdmin()?'<button class="btn sm danger" data-fid="'+f.id+'" onclick="deleteFinding(this)">Delete</button>':''}
+    ${canEdit&&isAdmin()?'<button class="btn sm danger" data-fid="'+escHtml(f.id)+'" onclick="deleteFinding(this)">Delete</button>':''}
     <button class="btn sm" onclick="closeModal()">Close</button>
-    ${canEdit?'<button class="btn sm primary" onclick="saveFinding(\''+f.id+'\')">Save changes</button>':''}
+    ${canEdit?'<button class="btn sm primary" onclick="saveFinding(\''+escJsAttr(f.id)+'\')">Save changes</button>':''}
   </div>`);
   loadEvidenceGrid(f.id);
 }
@@ -1026,10 +1037,10 @@ async function loadEvidenceGrid(fid){
     const pagesJson=JSON.stringify(pages).replace(/"/g,'&quot;');
     const isPdf=ef.mime_type==='application/pdf';
     html+='<div class="evidence-thumb">'
-      +'<img src="'+thumbSrc+'" alt="'+ef.orig_name+'" data-pages="'+pagesJson+'" data-label="'+ef.orig_name+'" onclick="showLightboxMulti(this)">'
+      +'<img src="'+thumbSrc+'" alt="'+escHtml(ef.orig_name)+'" data-pages="'+pagesJson+'" data-label="'+escHtml(ef.orig_name)+'" onclick="showLightboxMulti(this)">'
       +(isPdf?'<div class="thumb-pdf-badge">PDF &middot; '+(ef.page_count||1)+'p</div>':'')
-      +'<div class="thumb-label">'+ef.orig_name+'</div>'
-      +(canDel?'<button class="thumb-del" data-fid="'+fid+'" data-fileid="'+ef.id+'" onclick="deleteEvidence(this)">&#10005;</button>':'')
+      +'<div class="thumb-label">'+escHtml(ef.orig_name)+'</div>'
+      +(canDel?'<button class="thumb-del" data-fid="'+escHtml(fid)+'" data-fileid="'+ef.id+'" onclick="deleteEvidence(this)">&#10005;</button>':'')
       +'</div>';
   }
   if(canUp){
@@ -1067,7 +1078,7 @@ async function deleteEvidence(btn){
 function showLightbox(src, label){
   const lb=document.createElement('div');
   lb.className='lightbox-overlay';
-  lb.innerHTML='<img src="'+src+'" alt="'+label+'" title="'+label+'">';
+  lb.innerHTML='<img src="'+src+'" alt="'+escHtml(label)+'" title="'+escHtml(label)+'">';
   lb.addEventListener('click',()=>lb.remove());
   document.body.appendChild(lb);
 }
@@ -1081,12 +1092,12 @@ function showLightboxMulti(imgEl){
   const multi=pages.length>1;
   function render(){
     lb.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;gap:10px" onclick="event.stopPropagation()">'
-      +'<img src="'+pages[idx]+'" alt="'+label+'" title="'+label+'">'
+      +'<img src="'+pages[idx]+'" alt="'+escHtml(label)+'" title="'+escHtml(label)+'">'
       +(multi?'<div style="display:flex;align-items:center;gap:16px;color:#fff;font-size:13px">'
         +'<button class="btn sm" id="lb-prev" '+(idx===0?'disabled style="opacity:0.4"':'')+'>&larr; Prev</button>'
-        +'<span>'+label+' &middot; Page '+(idx+1)+' of '+pages.length+'</span>'
+        +'<span>'+escHtml(label)+' &middot; Page '+(idx+1)+' of '+pages.length+'</span>'
         +'<button class="btn sm" id="lb-next" '+(idx===pages.length-1?'disabled style="opacity:0.4"':'')+'>Next &rarr;</button>'
-        +'</div>':'<div style="color:#fff;font-size:13px">'+label+'</div>')
+        +'</div>':'<div style="color:#fff;font-size:13px">'+escHtml(label)+'</div>')
       +'</div>';
     if(multi){
       const prevBtn=lb.querySelector('#lb-prev'), nextBtn=lb.querySelector('#lb-next');
@@ -1115,7 +1126,7 @@ async function openAddFinding(){
   if(isAuditor())return;
   const engagements=await api('/api/engagements');
   let engOpts='',riskOpts='',statusOpts='',ownerOpts='',typeOpts='';
-  for(const e of engagements)engOpts+='<option value="'+e.id+'">'+e.name+'</option>';
+  for(const e of engagements)engOpts+='<option value="'+e.id+'">'+escHtml(e.name)+'</option>';
   engOpts+='<option value="">Manual entry</option>';
   for(const r of RISK_LEVELS)riskOpts+='<option>'+r+'</option>';
   for(const s of STATUSES)statusOpts+='<option>'+s+'</option>';
@@ -1138,7 +1149,7 @@ function renderReview(c){
   if(!findings.length){nav('upload');return;}
   let rows='';
   findings.forEach(function(f,i){
-    rows+='<tr><td><input type="checkbox" checked id="imp-'+i+'" style="width:auto"></td><td style="font-size:13px">'+f.title+'</td><td><span class="badge '+f.risk.toLowerCase()+'">'+f.risk+'</span></td><td style="font-size:12px;color:var(--text2)">'+f.description.slice(0,80)+'...</td></tr>';
+    rows+='<tr><td><input type="checkbox" checked id="imp-'+i+'" style="width:auto"></td><td style="font-size:13px">'+escHtml(f.title)+'</td><td><span class="badge '+escHtml(f.risk.toLowerCase())+'">'+escHtml(f.risk)+'</span></td><td style="font-size:12px;color:var(--text2)">'+escHtml((f.description||'').slice(0,80))+'...</td></tr>';
   });
   c.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-size:13px;color:var(--text2)">'+findings.length+' findings extracted — review before importing</span><div style="display:flex;gap:8px"><button class="btn sm" onclick="nav(&apos;upload&apos;)">Cancel</button><button class="btn sm primary" id="confirm-import-btn">Import selected</button></div></div><div class="card"><table><thead><tr><th style="width:40px"></th><th>Finding</th><th>Risk</th><th>Description</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   document.getElementById('confirm-import-btn').addEventListener('click', async function(){
@@ -1197,12 +1208,12 @@ async function renderChangelog(c){
     for(const ch of release.changes){
       items+='<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px">'
         +'<span style="flex-shrink:0;width:16px;text-align:center">'+(typeIcon[ch.type]||typeIcon.add)+'</span>'
-        +'<span style="color:var(--text2)">'+ch.text+'</span></div>';
+        +'<span style="color:var(--text2)">'+escHtml(ch.text)+'</span></div>';
     }
     html+='<div class="card" style="margin-bottom:16px">'
       +'<div class="card-header" style="display:flex;align-items:center;gap:12px">'
-      +'<span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--purple)">'+release.commit+'</span>'
-      +'<span style="font-size:11px;color:var(--text3);margin-left:auto">'+release.date+'</span>'
+      +'<span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--purple)">'+escHtml(release.commit)+'</span>'
+      +'<span style="font-size:11px;color:var(--text3);margin-left:auto">'+escHtml(release.date)+'</span>'
       +'</div>'
       +'<div class="card-body" style="padding:8px 16px">'+items+'</div>'
       +'</div>';
@@ -1304,13 +1315,13 @@ async function renderArchived(c){
     let rows='';
     for(const e of engagements){
       rows+='<tr>'
-        +'<td style="font-weight:500">'+e.name+'</td>'
-        +'<td><span class="badge informational">'+e.type+'</span></td>'
-        +'<td style="color:var(--text2)">'+e.eng_date+'</td>'
+        +'<td style="font-weight:500">'+escHtml(e.name)+'</td>'
+        +'<td><span class="badge informational">'+escHtml(e.type)+'</span></td>'
+        +'<td style="color:var(--text2)">'+escHtml(e.eng_date)+'</td>'
         +'<td>'+e.finding_count+'</td>'
         +'<td style="display:flex;gap:6px">'
         +'<button class="btn sm" data-eid="'+e.id+'" onclick="unarchiveEngagement(this)">Unarchive</button>'
-        +(masterAdmin?'<button class="btn sm danger" data-eid="'+e.id+'" data-ename="'+e.name.replace(/"/g,'&quot;')+'" onclick="openDeleteEngagement(this)">Delete</button>':'')
+        +(masterAdmin?'<button class="btn sm danger" data-eid="'+e.id+'" data-ename="'+escHtml(e.name)+'" onclick="openDeleteEngagement(this)">Delete</button>':'')
         +'</td></tr>';
     }
     c.innerHTML=tabsHtml+`<div class="info-box">Archived engagements are hidden from the Dashboard, Findings, and POA&amp;M views, but all data &mdash; findings, history, and evidence &mdash; is fully preserved. ${masterAdmin?'As a master admin, you can also permanently delete an archived engagement if it was uploaded by mistake.':''}</div>
@@ -1321,13 +1332,13 @@ async function renderArchived(c){
     let rows='';
     for(const v of vulns){
       rows+='<tr>'
-        +'<td><span class="badge '+v.severity.toLowerCase()+'">'+v.severity+'</span></td>'
-        +'<td style="font-weight:500">'+v.plugin_name+'</td>'
-        +'<td style="font-family:var(--mono);font-size:11px;color:var(--text3)">'+v.plugin_id+'</td>'
+        +'<td><span class="badge '+escHtml(v.severity.toLowerCase())+'">'+escHtml(v.severity)+'</span></td>'
+        +'<td style="font-weight:500">'+escHtml(v.plugin_name)+'</td>'
+        +'<td style="font-family:var(--mono);font-size:11px;color:var(--text3)">'+escHtml(v.plugin_id)+'</td>'
         +'<td>'+v.host_count+' hosts</td>'
         +'<td style="display:flex;gap:6px">'
-        +'<button class="btn sm" data-vid="'+v.id+'" onclick="unarchiveVulnFinding(this)">Unarchive</button>'
-        +(masterAdmin?'<button class="btn sm danger" onclick="openDeleteVuln(\''+v.id+'\',\''+v.plugin_name.replace(/'/g,"\\'")+'\')">Delete</button>':'')
+        +'<button class="btn sm" data-vid="'+escHtml(v.id)+'" onclick="unarchiveVulnFinding(this)">Unarchive</button>'
+        +(masterAdmin?'<button class="btn sm danger" onclick="openDeleteVuln(\''+escJsAttr(v.id)+'\',\''+escJsAttr(v.plugin_name)+'\')">Delete</button>':'')
         +'</td></tr>';
     }
     c.innerHTML=tabsHtml+`<div class="info-box">Archived vulnerabilities are hidden from the active Vulnerabilities view, but all data &mdash; hosts, history, and remediation notes &mdash; is fully preserved. ${masterAdmin?'As a master admin, you can also permanently delete an archived vulnerability if it was added by mistake.':''}</div>
@@ -1358,7 +1369,7 @@ async function renderSettings(c){
         +'<option value="false" '+(s.value==='false'?'selected':'')+'>Disabled</option>'
         +'</select>';
     } else {
-      input='<input type="'+(s.type==='number'?'number':'text')+'" id="setting-'+s.key+'" value="'+s.value+'" '+dis+' style="max-width:200px">';
+      input='<input type="'+(s.type==='number'?'number':'text')+'" id="setting-'+s.key+'" value="'+escHtml(s.value)+'" '+dis+' style="max-width:200px">';
     }
     rows+='<tr>'
       +'<td><div style="font-weight:500;font-size:13px">'+s.label+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+s.description+'</div></td>'
@@ -1500,22 +1511,22 @@ async function renderVulnerabilities(c){
   let scanRows='';
   for(const sc of (stats.scans||[]).slice(-8).reverse()){
     scanRows+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">'
-      +'<div><span>'+sc.scan_date+'</span> <span style="color:var(--text3)">'+sc.filename+'</span> <span style="color:var(--purple);font-size:11px">('+(sc.scope||'Unspecified')+')</span></div>'
-      +(masterAdmin?'<button class="btn sm danger" style="padding:2px 8px;font-size:11px" onclick="openDeleteVulnScan('+sc.id+',\''+sc.filename.replace(/'/g,"\\'")+'\')">Delete</button>':'')
+      +'<div><span>'+escHtml(sc.scan_date)+'</span> <span style="color:var(--text3)">'+escHtml(sc.filename)+'</span> <span style="color:var(--purple);font-size:11px">('+escHtml(sc.scope||'Unspecified')+')</span></div>'
+      +(masterAdmin?'<button class="btn sm danger" style="padding:2px 8px;font-size:11px" onclick="openDeleteVulnScan('+sc.id+',\''+escJsAttr(sc.filename)+'\')">Delete</button>':'')
       +'</div>';
   }
 
   let rows='';
   if(!findings.length){rows='<tr><td colspan="6"><div class="empty"><p>No vulnerabilities found. Upload a Nessus scan to get started.</p></div></td></tr>';}
   for(const f of findings){
-    rows+='<tr onclick="openVulnDetail(\''+f.id+'\')" style="cursor:pointer">'
-      +'<td><span class="badge '+f.severity.toLowerCase()+'">'+f.severity+'</span></td>'
-      +'<td style="font-weight:500;max-width:280px">'+f.plugin_name+'</td>'
-      +'<td style="font-family:var(--mono);font-size:11px;color:var(--text3)">'+f.plugin_id+'</td>'
+    rows+='<tr onclick="openVulnDetail(\''+escJsAttr(f.id)+'\')" style="cursor:pointer">'
+      +'<td><span class="badge '+escHtml(f.severity.toLowerCase())+'">'+escHtml(f.severity)+'</span></td>'
+      +'<td style="font-weight:500;max-width:280px">'+escHtml(f.plugin_name)+'</td>'
+      +'<td style="font-family:var(--mono);font-size:11px;color:var(--text3)">'+escHtml(f.plugin_id)+'</td>'
       +'<td>'+f.host_count+' hosts</td>'
-      +'<td><span class="badge '+f.status.toLowerCase().replace(/ /g,'-')+'">'+f.status+'</span></td>'
-      +'<td style="font-size:12px;color:var(--text2)">'+(f.owner||'Unassigned')+'</td>'
-      +'<td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(f.last_scope||'')+'">'+(f.last_scope||'&mdash;')+'</td>'
+      +'<td><span class="badge '+escHtml(f.status.toLowerCase().replace(/ /g,'-'))+'">'+escHtml(f.status)+'</span></td>'
+      +'<td style="font-size:12px;color:var(--text2)">'+escHtml(f.owner||'Unassigned')+'</td>'
+      +'<td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+escHtml(f.last_scope||'')+'">'+(escHtml(f.last_scope)||'&mdash;')+'</td>'
       +'</tr>';
   }
 
@@ -1564,15 +1575,15 @@ async function renderVulnDetail(c){
 
   let hostRows='';
   for(const h of v.hosts){
-    hostRows+='<tr><td style="font-family:var(--mono);font-size:12px">'+h.host_ip+'</td>'
-      +'<td style="font-size:12px">'+(h.hostname||'&mdash;')+'</td>'
-      +'<td style="font-size:12px">'+(h.port||'&mdash;')+'/'+(h.protocol||'')+'</td>'
+    hostRows+='<tr><td style="font-family:var(--mono);font-size:12px">'+escHtml(h.host_ip)+'</td>'
+      +'<td style="font-size:12px">'+(escHtml(h.hostname)||'&mdash;')+'</td>'
+      +'<td style="font-size:12px">'+(escHtml(h.port)||'&mdash;')+'/'+escHtml(h.protocol||'')+'</td>'
       +'<td style="font-size:11px;color:var(--text3)">'+(h.last_seen||'').split(' ')[0]+'</td></tr>';
   }
 
   let actRows='';
   for(const a of v.activity){
-    actRows+='<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-text">'+a.action+'<br><span style="font-size:11px;color:var(--text3)">'+(a.ts||'').split(' ')[0]+' &middot; '+a.actor+'</span></div></div>';
+    actRows+='<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-text">'+escHtml(a.action)+'<br><span style="font-size:11px;color:var(--text3)">'+(a.ts||'').split(' ')[0]+' &middot; '+escHtml(a.actor)+'</span></div></div>';
   }
 
   const statusOpts=['Open','In Progress','Likely Resolved','Resolved','Patched','Risk Accepted','False Positive','Compensating Control'].map(s=>'<option value="'+s+'" '+(v.status===s?'selected':'')+'>'+s+'</option>').join('');
@@ -1581,17 +1592,17 @@ async function renderVulnDetail(c){
   <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px">
     <div>
       <div class="card"><div class="card-header">
-        <span class="badge ${v.severity.toLowerCase()}">${v.severity}</span>
-        <span class="card-header-title" style="margin-left:8px">${v.plugin_name}</span>
+        <span class="badge ${escHtml(v.severity.toLowerCase())}">${escHtml(v.severity)}</span>
+        <span class="card-header-title" style="margin-left:8px">${escHtml(v.plugin_name)}</span>
       </div>
       <div class="card-body">
-        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Plugin ID: <span style="font-family:var(--mono)">${v.plugin_id}</span> &middot; ${v.host_count} hosts affected &middot; First seen ${(v.first_seen||'').split(' ')[0]} &middot; Last seen ${(v.last_seen||'').split(' ')[0]}</div>
-        <div class="form-group"><label>Description</label><div style="font-size:13px;color:var(--text2);white-space:pre-wrap">${v.description||'&mdash;'}</div></div>
-        <div class="form-group"><label>Solution</label><div style="font-size:13px;color:var(--text2);white-space:pre-wrap">${v.solution||'&mdash;'}</div></div>
-        ${v.cves?'<div class="form-group"><label>CVEs</label><div style="font-size:12px;font-family:var(--mono)">'+v.cves+'</div></div>':''}
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Plugin ID: <span style="font-family:var(--mono)">${escHtml(v.plugin_id)}</span> &middot; ${v.host_count} hosts affected &middot; First seen ${(v.first_seen||'').split(' ')[0]} &middot; Last seen ${(v.last_seen||'').split(' ')[0]}</div>
+        <div class="form-group"><label>Description</label><div style="font-size:13px;color:var(--text2);white-space:pre-wrap">${escHtml(v.description)||'&mdash;'}</div></div>
+        <div class="form-group"><label>Solution</label><div style="font-size:13px;color:var(--text2);white-space:pre-wrap">${escHtml(v.solution)||'&mdash;'}</div></div>
+        ${v.cves?'<div class="form-group"><label>CVEs</label><div style="font-size:12px;font-family:var(--mono)">'+escHtml(v.cves)+'</div></div>':''}
         <div class="form-row">
           <div class="form-group"><label>Status</label><select id="vd-status">${statusOpts}</select></div>
-          <div class="form-group"><label>Owner</label><input id="vd-owner" value="${v.owner||''}"></div>
+          <div class="form-group"><label>Owner</label><input id="vd-owner" value="${escHtml(v.owner||'')}"></div>
         </div>
         <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:12px">
           <strong style="color:var(--text2)">How status updates on rescan:</strong><br>
@@ -1602,13 +1613,13 @@ async function renderVulnDetail(c){
           All of the above except Open and In Progress count as "resolved" on dashboards and completion percentages.
         </div>
         <div class="form-row">
-          <div class="form-group"><label>Due date</label><input type="date" id="vd-due" value="${v.due_date||''}"></div>
+          <div class="form-group"><label>Due date</label><input type="date" id="vd-due" value="${escHtml(v.due_date||'')}"></div>
         </div>
-        <div class="form-group"><label>Remediation notes</label><textarea id="vd-remediation" rows="3">${v.remediation||''}</textarea></div>
+        <div class="form-group"><label>Remediation notes</label><textarea id="vd-remediation" rows="3">${escHtml(v.remediation||'')}</textarea></div>
         <div style="display:flex;gap:8px">
-          <button class="btn primary" onclick="saveVulnDetail('${vid}')">Save changes</button>
-          ${isAdmin()?`<button class="btn" onclick="archiveVulnFinding('${vid}')">Archive</button>`:''}
-          ${isMasterAdmin()?`<button class="btn danger" onclick="openDeleteVuln('${vid}','${v.plugin_name.replace(/'/g,"\\'")}')">Delete</button>`:''}
+          <button class="btn primary" onclick="saveVulnDetail('${escJsAttr(vid)}')">Save changes</button>
+          ${isAdmin()?`<button class="btn" onclick="archiveVulnFinding('${escJsAttr(vid)}')">Archive</button>`:''}
+          ${isMasterAdmin()?`<button class="btn danger" onclick="openDeleteVuln('${escJsAttr(vid)}','${escJsAttr(v.plugin_name)}')">Delete</button>`:''}
         </div>
       </div></div>
       <div class="card"><div class="card-header"><span class="card-header-title">Affected Hosts</span></div>
@@ -1648,9 +1659,9 @@ function openDeleteVuln(vid,name){
   showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500;color:#ef4444">Permanently delete vulnerability</span><button class="btn sm" onclick="closeModal()">X</button></div>'
     +'<div class="modal-body">'
     +'<div style="background:#3f0f0f;border:1px solid #b91c1c;border-radius:var(--radius);padding:12px 14px;font-size:13px;color:#fca5a5;margin-bottom:16px;line-height:1.6">'
-    +'<strong>This cannot be undone.</strong> Deleting "'+name+'" will permanently remove it, all affected host records, and its full activity history. If you want to keep this data but get it out of the way, use <strong>Archive</strong> instead.'
+    +'<strong>This cannot be undone.</strong> Deleting "'+escHtml(name)+'" will permanently remove it, all affected host records, and its full activity history. If you want to keep this data but get it out of the way, use <strong>Archive</strong> instead.'
     +'</div>'
-    +'<div class="form-group"><label>Type the vulnerability name to confirm: <strong>'+name+'</strong></label><input type="text" id="del-vuln-confirm" placeholder="'+name+'"></div>'
+    +'<div class="form-group"><label>Type the vulnerability name to confirm: <strong>'+escHtml(name)+'</strong></label><input type="text" id="del-vuln-confirm" placeholder="'+escHtml(name)+'"></div>'
     +'</div>'
     +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm danger" onclick="confirmDeleteVuln()">Permanently delete</button></div>');
 }
@@ -1673,9 +1684,9 @@ async function renderVulnHosts(c){
   const hosts=await api('/api/vuln/hosts');
   let rows='';
   for(const h of hosts){
-    rows+='<tr onclick="openVulnHostDetail(\''+h.host_ip+'\')" style="cursor:pointer">'
-      +'<td style="font-family:var(--mono);font-size:12px">'+h.host_ip+'</td>'
-      +'<td style="font-size:12px">'+(h.hostname||'&mdash;')+'</td>'
+    rows+='<tr onclick="openVulnHostDetail(\''+escJsAttr(h.host_ip)+'\')" style="cursor:pointer">'
+      +'<td style="font-family:var(--mono);font-size:12px">'+escHtml(h.host_ip)+'</td>'
+      +'<td style="font-size:12px">'+(escHtml(h.hostname)||'&mdash;')+'</td>'
       +'<td>'+h.vuln_count+' vulnerabilit'+(h.vuln_count!==1?'ies':'y')+'</td>'
       +'<td style="font-size:11px;color:var(--text3)">'+(h.last_seen||'').split(' ')[0]+'</td></tr>';
   }
@@ -1695,21 +1706,21 @@ async function renderVulnHostDetail(c){
   const vulns=await api('/api/vuln/hosts/'+encodeURIComponent(ip));
   let rows='';
   for(const v of vulns){
-    rows+='<tr onclick="openVulnDetail(\''+v.id+'\')" style="cursor:pointer">'
-      +'<td><span class="badge '+v.severity.toLowerCase()+'">'+v.severity+'</span></td>'
-      +'<td style="font-weight:500">'+v.plugin_name+'</td>'
-      +'<td style="font-size:12px">'+(v.port||'&mdash;')+'/'+(v.protocol||'')+'</td>'
-      +'<td><span class="badge '+v.status.toLowerCase().replace(/ /g,'-')+'">'+v.status+'</span></td></tr>';
+    rows+='<tr onclick="openVulnDetail(\''+escJsAttr(v.id)+'\')" style="cursor:pointer">'
+      +'<td><span class="badge '+escHtml(v.severity.toLowerCase())+'">'+escHtml(v.severity)+'</span></td>'
+      +'<td style="font-weight:500">'+escHtml(v.plugin_name)+'</td>'
+      +'<td style="font-size:12px">'+(escHtml(v.port)||'&mdash;')+'/'+escHtml(v.protocol||'')+'</td>'
+      +'<td><span class="badge '+escHtml(v.status.toLowerCase().replace(/ /g,'-'))+'">'+escHtml(v.status)+'</span></td></tr>';
   }
   c.innerHTML=`<button class="btn sm" onclick="nav('vulnhosts')" style="margin-bottom:14px">&larr; Back to Hosts</button>
-  <div class="card"><div class="card-header"><span class="card-header-title">${ip}</span><span style="font-size:12px;color:var(--text3)">${vulns.length} vulnerabilit${vulns.length!==1?'ies':'y'}</span></div>
+  <div class="card"><div class="card-header"><span class="card-header-title">${escHtml(ip)}</span><span style="font-size:12px;color:var(--text3)">${vulns.length} vulnerabilit${vulns.length!==1?'ies':'y'}</span></div>
   <table><thead><tr><th>Severity</th><th>Vulnerability</th><th>Port</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 async function openVulnUpload(){
   let scopes=[];
   try{scopes=await api('/api/vuln/scopes');}catch(e){scopes=[];}
-  const scopeOpts=scopes.map(s=>'<option value="'+s.name+'">'+s.name+'</option>').join('')+'<option value="__new__">+ Add new scope...</option>';
+  const scopeOpts=scopes.map(s=>'<option value="'+escHtml(s.name)+'">'+escHtml(s.name)+'</option>').join('')+'<option value="__new__">+ Add new scope...</option>';
   showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Upload Nessus Scan</span><button class="btn sm" onclick="closeModal()">X</button></div>'
     +'<div class="modal-body">'
     +'<div class="form-group"><label>Scope / Environment</label><select id="vu-scope" onchange="handleScopeChange(this)">'+scopeOpts+'</select>'
@@ -1759,9 +1770,9 @@ async function openManageScopes(){
   let rows='';
   for(const s of scopes){
     rows+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">'
-      +'<input type="text" value="'+s.name+'" id="scope-name-'+s.id+'" style="flex:1;margin-right:8px">'
+      +'<input type="text" value="'+escHtml(s.name)+'" id="scope-name-'+s.id+'" style="flex:1;margin-right:8px">'
       +'<button class="btn sm" onclick="renameScope('+s.id+')">Rename</button>'
-      +(masterAdmin?'<button class="btn sm danger" style="margin-left:6px" onclick="openDeleteScope('+s.id+',\''+s.name.replace(/'/g,"\\'")+'\')">Delete</button>':'')
+      +(masterAdmin?'<button class="btn sm danger" style="margin-left:6px" onclick="openDeleteScope('+s.id+',\''+escJsAttr(s.name)+'\')">Delete</button>':'')
       +'</div>';
   }
   showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500">Manage Scopes</span><button class="btn sm" onclick="closeModal()">X</button></div>'
@@ -1783,7 +1794,7 @@ async function renameScope(sid){
 function openDeleteScope(sid,name){
   showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500;color:#ef4444">Delete scope</span><button class="btn sm" onclick="closeModal()">X</button></div>'
     +'<div class="modal-body">'
-    +'<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Deleting "'+name+'" will fail if it\'s still in use. If you want to merge its data into another scope, enter that scope name below (leave blank to only allow deletion if unused).</p>'
+    +'<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Deleting "'+escHtml(name)+'" will fail if it\'s still in use. If you want to merge its data into another scope, enter that scope name below (leave blank to only allow deletion if unused).</p>'
     +'<div class="form-group"><label>Reassign existing data to (optional)</label><input type="text" id="scope-reassign" placeholder="e.g. AWS SS"></div>'
     +'</div>'
     +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm danger" onclick="confirmDeleteScope('+sid+')">Delete</button></div>');
@@ -1802,11 +1813,11 @@ function openDeleteVulnScan(scanId,filename){
   showModal('<div class="modal-header"><span style="font-size:15px;font-weight:500;color:#ef4444">Permanently delete scan upload</span><button class="btn sm" onclick="closeModal()">X</button></div>'
     +'<div class="modal-body">'
     +'<div style="background:#3f0f0f;border:1px solid #b91c1c;border-radius:var(--radius);padding:12px 14px;font-size:13px;color:#fca5a5;margin-bottom:16px;line-height:1.6">'
-    +'<strong>This cannot be undone.</strong> This removes all host data from "'+filename+'". Any vulnerability that existed only because of this scan will be deleted entirely. Vulnerabilities also detected in other scans will simply have this scan\'s hosts removed.'
+    +'<strong>This cannot be undone.</strong> This removes all host data from "'+escHtml(filename)+'". Any vulnerability that existed only because of this scan will be deleted entirely. Vulnerabilities also detected in other scans will simply have this scan\'s hosts removed.'
     +'</div>'
-    +'<div class="form-group"><label>Type the filename to confirm: <strong>'+filename+'</strong></label><input type="text" id="del-scan-confirm" placeholder="'+filename+'"></div>'
+    +'<div class="form-group"><label>Type the filename to confirm: <strong>'+escHtml(filename)+'</strong></label><input type="text" id="del-scan-confirm" placeholder="'+escHtml(filename)+'"></div>'
     +'</div>'
-    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm danger" onclick="confirmDeleteVulnScan('+scanId+',\''+filename.replace(/'/g,"\\'")+'\')">Permanently delete</button></div>');
+    +'<div class="modal-footer"><button class="btn sm" onclick="closeModal()">Cancel</button><button class="btn sm danger" onclick="confirmDeleteVulnScan('+scanId+',\''+escJsAttr(filename)+'\')">Permanently delete</button></div>');
 }
 
 async function confirmDeleteVulnScan(scanId,filename){

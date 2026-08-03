@@ -108,6 +108,14 @@ def close_db(e=None):
     if db:
         db.close()
 
+@app.after_request
+def set_security_headers(resp):
+    # Belt-and-suspenders against browsers reinterpreting an uploaded evidence
+    # file's declared type (e.g. an HTML/script payload uploaded with a .png
+    # extension) as something executable.
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    return resp
+
 def row_to_dict(row):
     return dict(row) if row else None
 
@@ -458,8 +466,6 @@ def enforce_login():
     p = request.path
     if p in PUBLIC_PATHS:
         return None
-    if p.startswith('/uploads/'):
-        return None
 
     u = get_current_user()
     if u.get('role') == 'none':
@@ -756,6 +762,9 @@ def unarchive_engagement(eid):
 @app.route('/api/engagements', methods=['POST'])
 
 def create_engagement():
+    u = get_current_user()
+    if u.get('role') == 'auditor':
+        return jsonify({'error': 'Auditors cannot create engagements'}), 403
     data = request.json
     db = get_db()
     cur = db.execute("INSERT INTO engagements (name,type,vendor,eng_date) VALUES (?,?,?,?)",
@@ -789,6 +798,9 @@ def list_findings():
 
 @app.route('/api/findings', methods=['POST'])
 def create_finding():
+    u = get_current_user()
+    if u.get('role') == 'auditor':
+        return jsonify({'error': 'Auditors cannot create findings'}), 403
     data  = request.json
     db    = get_db()
     risk     = data.get('risk','Medium')
@@ -826,6 +838,9 @@ def get_finding(fid):
 
 @app.route('/api/findings/<fid>', methods=['PUT'])
 def update_finding(fid):
+    u = get_current_user()
+    if u.get('role') == 'auditor':
+        return jsonify({'error': 'Auditors cannot edit findings'}), 403
     data  = request.json
     db    = get_db()
     row   = db.execute("SELECT * FROM findings WHERE id=?", (fid,)).fetchone()
@@ -986,6 +1001,18 @@ def upload_evidence_file(fid):
         mime_type = 'application/pdf'
     if mime_type not in ALLOWED_EVIDENCE_TYPES:
         return jsonify({'error': 'Only JPEG, PNG, GIF, WebP, or PDF files allowed'}), 400
+    # Verify the file's actual content, not just its filename/declared type —
+    # a renamed non-image (e.g. an HTML/script payload named "evidence.png")
+    # must not be accepted just because the extension looks right.
+    if mime_type != 'application/pdf':
+        from PIL import Image
+        try:
+            f.seek(0)
+            Image.open(f).verify()
+        except Exception:
+            return jsonify({'error': 'File content does not match a valid image'}), 400
+        finally:
+            f.seek(0)
     # Check file size against settings
     max_mb  = get_setting_int('max_evidence_file_mb', 20)
     f.seek(0, 2)  # seek to end
@@ -1076,6 +1103,8 @@ def delete_evidence_file(fid, file_id):
 def serve_evidence_file(fid, filename):
     fid      = re.sub(r'[^A-Za-z0-9\-]', '', fid)
     filename = re.sub(r'[^A-Za-z0-9\-\.]', '', filename)
+    if not fid or not filename or set(fid) == {'.'} or set(filename) == {'.'}:
+        return jsonify({'error': 'Not found'}), 404
     file_path = os.path.join(UPLOADS_PATH, fid, filename)
     if not os.path.exists(file_path):
         return jsonify({'error': 'Not found'}), 404
@@ -2233,6 +2262,9 @@ def vuln_trend():
 
 @app.route('/api/upload', methods=['POST'])
 def upload_pdf():
+    u = get_current_user()
+    if u.get('role') == 'auditor':
+        return jsonify({'error': 'Auditors cannot import findings'}), 403
     if 'file' not in request.files:
         return jsonify({'error': 'No file'}), 400
     f = request.files['file']
@@ -2355,6 +2387,9 @@ button{padding:10px 24px;background:#534AB7;color:white;border:none;border-radiu
 </form>
 <a class="back" href="/">← Back to SecTrack</a>
 </body></html>'''
+    u = get_current_user()
+    if u.get('role') == 'auditor':
+        return 'Auditors cannot import findings', 403
     import json as _json
     f = request.files.get('file')
     if not f:
