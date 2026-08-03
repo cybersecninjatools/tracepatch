@@ -106,5 +106,15 @@
         "text": "Add per-username account lockout: after max_login_attempts (default 3) consecutive failed logins, the account is locked for lockout_duration_minutes (default 5, both configurable by a master admin), with a clear wait-time message and no bypass via a correct password during lockout"
       }
     ]
+  },
+  {
+    "commit": "3e77046",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Add IP-based login rate limiting: after ip_rate_limit_max_attempts (default 20) failed logins from one IP within a rolling window (default 15 min), that IP is blocked for ip_rate_limit_lockout_minutes (default 15), regardless of username \u2014 closing the gap where per-username lockout alone doesn't stop guessing sprayed across many usernames from one source"
+      }
+    ]
   }
 ]
