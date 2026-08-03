@@ -56,5 +56,15 @@
         "text": "Remove the sidebar version badge (redundant with the Updates page)"
       }
     ]
+  },
+  {
+    "commit": "783953b",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Add signer_title, report_classification, and compliance_framework app settings so the POA&M report signature title, classification banner, and framework reference are configurable instead of hardcoded"
+      }
+    ]
   }
 ]
