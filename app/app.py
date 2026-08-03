@@ -689,15 +689,19 @@ def list_findings():
 def create_finding():
     data  = request.json
     db    = get_db()
+    risk     = data.get('risk','Medium')
+    due_date = data.get('due_date','')
+    if risk in ('Critical', 'High') and not due_date and get_setting_bool('require_due_date_high_risk', False):
+        return jsonify({'error': 'A due date is required for Critical and High risk findings.'}), 400
     fid   = next_finding_id(db)
     actor = get_current_user().get('display', data.get('actor', 'System'))
     db.execute('''INSERT INTO findings (id,title,description,engagement_id,source_label,risk,status,is_new,owner,due_date,remediation,evidence,affected_hosts,cves,in_poam)
                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''', (
         fid, data['title'], data.get('description',''),
         data.get('engagement_id'), data.get('source_label',''),
-        data.get('risk','Medium'), data.get('status','Open'),
+        risk, data.get('status','Open'),
         1 if data.get('is_new', True) else 0,
-        data.get('owner','Unassigned'), data.get('due_date',''),
+        data.get('owner') or get_setting('default_finding_owner', 'Unassigned'), due_date,
         data.get('remediation',''), data.get('evidence',''),
         data.get('affected_hosts',''), data.get('cves',''),
         1 if data.get('in_poam', False) else 0
@@ -731,6 +735,11 @@ def update_finding(fid):
         ev_count = db.execute("SELECT COUNT(*) FROM evidence_files WHERE finding_id=?", (fid,)).fetchone()[0]
         if ev_count == 0:
             return jsonify({'error': 'Evidence is required before marking a finding as Resolved. Please upload at least one evidence file first.'}), 400
+    # Check require_due_date_high_risk setting against the resulting (merged) state
+    effective_risk     = data.get('risk', old.get('risk'))
+    effective_due_date = data.get('due_date', old.get('due_date'))
+    if effective_risk in ('Critical', 'High') and not effective_due_date and get_setting_bool('require_due_date_high_risk', False):
+        return jsonify({'error': 'A due date is required for Critical and High risk findings.'}), 400
     data.pop('actor', None)
     fields    = ['title','description','risk','status','is_new','owner','due_date','remediation','evidence','in_poam']
     long_fields = ('description', 'remediation', 'evidence', 'title')

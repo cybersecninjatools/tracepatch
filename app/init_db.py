@@ -222,6 +222,10 @@ DEFAULT_SETTINGS = [
      'Classification label shown on report headers', 'text', 'admin'),
     ('compliance_framework', 'NIST SP 800-53 Rev 5', 'Compliance Framework',
      'Framework reference shown on POA&M reports', 'text', 'admin'),
+    ('default_finding_owner', 'Unassigned', 'Default Finding Owner',
+     'Owner assigned to a new finding when none is specified', 'text', 'admin'),
+    ('require_due_date_high_risk', 'false', 'Require Due Date for High/Critical Risk',
+     'Block creating or saving a Critical or High risk finding without a due date', 'bool', 'admin'),
 ]
 
 def main():

@@ -1100,8 +1100,10 @@ function showLightboxMulti(imgEl){
 }
 
 async function saveFinding(id){
-  await api('/api/findings/'+id,{method:'PUT',body:{risk:document.getElementById('ed-risk').value,status:document.getElementById('ed-status').value,owner:document.getElementById('ed-owner').value,due_date:document.getElementById('ed-due').value,description:document.getElementById('ed-desc').value,remediation:document.getElementById('ed-rem').value,evidence:document.getElementById('ed-ev').value,is_new:parseInt(document.getElementById('ed-isnew').value),in_poam:parseInt(document.getElementById('ed-poam').value)}});
-  closeModal();render();
+  try{
+    await api('/api/findings/'+id,{method:'PUT',body:{risk:document.getElementById('ed-risk').value,status:document.getElementById('ed-status').value,owner:document.getElementById('ed-owner').value,due_date:document.getElementById('ed-due').value,description:document.getElementById('ed-desc').value,remediation:document.getElementById('ed-rem').value,evidence:document.getElementById('ed-ev').value,is_new:parseInt(document.getElementById('ed-isnew').value),in_poam:parseInt(document.getElementById('ed-poam').value)}});
+    closeModal();render();
+  }catch(e){alert('Error: '+e.message);}
 }
 
 async function deleteFinding(btn){
@@ -1124,8 +1126,10 @@ async function openAddFinding(){
 async function submitNewFinding(){
   const title=document.getElementById('nf-title').value.trim();
   if(!title){alert('Enter a title.');return;}
-  await api('/api/findings',{method:'POST',body:{title,risk:document.getElementById('nf-risk').value,status:document.getElementById('nf-status').value,owner:document.getElementById('nf-owner').value,due_date:document.getElementById('nf-due').value,engagement_id:document.getElementById('nf-eng').value||null,is_new:parseInt(document.getElementById('nf-isnew').value),description:document.getElementById('nf-desc').value,in_poam:parseInt(document.getElementById('nf-poam').value)}});
-  closeModal();render();
+  try{
+    await api('/api/findings',{method:'POST',body:{title,risk:document.getElementById('nf-risk').value,status:document.getElementById('nf-status').value,owner:document.getElementById('nf-owner').value,due_date:document.getElementById('nf-due').value,engagement_id:document.getElementById('nf-eng').value||null,is_new:parseInt(document.getElementById('nf-isnew').value),description:document.getElementById('nf-desc').value,in_poam:parseInt(document.getElementById('nf-poam').value)}});
+    closeModal();render();
+  }catch(e){alert('Error: '+e.message);}
 }
 
 function renderReview(c){
