@@ -76,5 +76,15 @@
         "text": "Add default_finding_owner and require_due_date_high_risk app settings \u2014 configurable default owner for new findings, and an optional block on saving Critical/High risk findings without a due date"
       }
     ]
+  },
+  {
+    "commit": "6297634",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Add per-risk due date SLA settings (Critical/High/Medium/Low, defaulting to 15/30/60/90 days) that auto-calculate a finding's due date on creation when none is set, replacing the old default_due_date_days setting"
+      }
+    ]
   }
 ]
