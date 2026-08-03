@@ -66,5 +66,15 @@
         "text": "Add signer_title, report_classification, and compliance_framework app settings so the POA&M report signature title, classification banner, and framework reference are configurable instead of hardcoded"
       }
     ]
+  },
+  {
+    "commit": "9286499",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Add default_finding_owner and require_due_date_high_risk app settings \u2014 configurable default owner for new findings, and an optional block on saving Critical/High risk findings without a due date"
+      }
+    ]
   }
 ]
