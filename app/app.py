@@ -2291,12 +2291,17 @@ button{padding:10px 24px;background:#534AB7;color:white;border:none;border-radiu
         eng_id = cur.lastrowid
         actor = get_current_user().get('display','System')
         for finding in findings:
-            fid = next_finding_id(db)
+            fid  = next_finding_id(db)
+            risk = finding.get('risk','Medium')
+            cves = finding.get('cves') or ''
+            if isinstance(cves, list):
+                cves = ', '.join(cves)
             db.execute('''INSERT INTO findings (id,title,description,engagement_id,source_label,risk,status,is_new,owner,due_date,remediation,evidence,affected_hosts,cves,in_poam)
-                          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
                 (fid, finding['title'], finding.get('description',''),
-                 eng_id, src_name, finding.get('risk','Medium'),
-                 'Open', 1, 'Unassigned', '', '', '', 0))
+                 eng_id, src_name, risk,
+                 'Open', 1, get_setting('default_finding_owner', 'Unassigned'), auto_due_date(risk),
+                 '', '', '', cves, 0))
             log_activity(db, fid, actor, 'Imported from PDF upload')
         db.commit()
         return f'''<!DOCTYPE html>
