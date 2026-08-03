@@ -253,6 +253,20 @@ DEFAULT_SETTINGS = [
      'Rolling time window for counting failed login attempts from a single IP address', 'number', 'master_admin'),
     ('ip_rate_limit_lockout_minutes', '15', 'IP Lockout Duration (minutes)',
      'How long an IP address is blocked after exceeding the failed attempt threshold', 'number', 'master_admin'),
+    ('app_title', 'TracePatch', 'Application title',
+     'Name shown in the sidebar and browser tab', 'text', 'master_admin'),
+    ('org_name', 'Your Organization', 'Organization name',
+     'Displayed in report headers and page titles', 'text', 'master_admin'),
+    ('demo_data_visible', 'true', 'Show demo data',
+     'Display sample findings and vulnerability data alongside real data', 'bool', 'master_admin'),
+    ('max_evidence_file_mb', '20', 'Max evidence file size (MB)',
+     'Maximum size for uploaded evidence images and PDFs', 'number', 'master_admin'),
+    ('session_timeout_minutes', '60', 'Session timeout (minutes)',
+     'Idle time before user is logged out', 'number', 'master_admin'),
+    ('session_warning_minutes', '10', 'Session warning (minutes)',
+     'Minutes before timeout to show warning', 'number', 'master_admin'),
+    ('analysts_can_delete_findings', 'false', 'Analysts can delete findings',
+     'Allow analyst role to delete findings (default: admin only)', 'bool', 'master_admin'),
 ]
 
 def main():
