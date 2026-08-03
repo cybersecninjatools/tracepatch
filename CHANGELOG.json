@@ -116,5 +116,15 @@
         "text": "Add IP-based login rate limiting: after ip_rate_limit_max_attempts (default 20) failed logins from one IP within a rolling window (default 15 min), that IP is blocked for ip_rate_limit_lockout_minutes (default 15), regardless of username \u2014 closing the gap where per-username lockout alone doesn't stop guessing sprayed across many usernames from one source"
       }
     ]
+  },
+  {
+    "commit": "099eb20",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Security hardening: escape all user-submitted content in the UI to close stored-XSS gaps, validate evidence uploads by actual file content instead of just filename extension, require authentication to view uploaded evidence files, and enforce the read-only auditor role server-side (not just in the UI) for creating/editing findings, engagements, and PDF/CSV imports"
+      }
+    ]
   }
 ]
