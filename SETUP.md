@@ -8,6 +8,12 @@ from a fresh clone to a running instance in a few minutes.
 - Docker and Docker Compose installed
 - Port 5000 available (or edit `docker-compose.yml` to use a different port)
 
+## Using your own internal certificate authority
+
+If you plan to run TracePatch on your internal network with your own CA-issued
+certificate instead of a public one, see
+[docs/internal-ca-setup.md](./docs/internal-ca-setup.md) for a full walkthrough.
+
 ## 1. Clone the repository
 
 ```bash
