@@ -207,6 +207,13 @@ CREATE TABLE IF NOT EXISTS vuln_snapshots (
     completion_pct INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS login_ip_attempts (
+    ip_address TEXT PRIMARY KEY,
+    failed_attempts INTEGER NOT NULL DEFAULT 0,
+    window_start TEXT,
+    lockout_until TEXT
+);
 """
 
 def ensure_column(conn, table, column, decl):
@@ -240,6 +247,12 @@ DEFAULT_SETTINGS = [
      'Consecutive failed login attempts allowed for a username before it is temporarily locked out', 'number', 'master_admin'),
     ('lockout_duration_minutes', '5', 'Lockout Duration (minutes)',
      'How long a username is locked out after exceeding the max login attempts', 'number', 'master_admin'),
+    ('ip_rate_limit_max_attempts', '20', 'Max Failed Attempts per IP',
+     'Failed login attempts allowed from a single IP address within the rate limit window before it is temporarily blocked', 'number', 'master_admin'),
+    ('ip_rate_limit_window_minutes', '15', 'IP Rate Limit Window (minutes)',
+     'Rolling time window for counting failed login attempts from a single IP address', 'number', 'master_admin'),
+    ('ip_rate_limit_lockout_minutes', '15', 'IP Lockout Duration (minutes)',
+     'How long an IP address is blocked after exceeding the failed attempt threshold', 'number', 'master_admin'),
 ]
 
 def main():

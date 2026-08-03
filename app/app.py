@@ -175,25 +175,72 @@ def _lockout_message(seconds_remaining):
     minutes = max(1, math.ceil(seconds_remaining / 60))
     return f"Account locked due to too many failed login attempts. Try again in {minutes} minute{'s' if minutes != 1 else ''}."
 
+def _client_ip():
+    return request.headers.get('X-Real-IP') or request.remote_addr or 'unknown'
+
+def _check_ip_lockout(db, ip):
+    """Returns an error message if this IP is currently rate-limited, else None."""
+    row = db.execute("SELECT lockout_until FROM login_ip_attempts WHERE ip_address=?", (ip,)).fetchone()
+    if not row:
+        return None
+    lockout_until = _parse_lockout_dt(row['lockout_until'])
+    if lockout_until and datetime.utcnow() < lockout_until:
+        seconds = (lockout_until - datetime.utcnow()).total_seconds()
+        minutes = max(1, math.ceil(seconds / 60))
+        return f"Too many failed login attempts from this network. Try again in {minutes} minute{'s' if minutes != 1 else ''}."
+    return None
+
+def _record_ip_failure(db, ip):
+    """Rolling-window failure counter per source IP, independent of username.
+    Deliberately never reset by a successful login — only by the window
+    expiring — so spraying many usernames from one IP can't be masked by
+    slipping in one valid login. See feedback_tracepatch_ip_rate_limit memory."""
+    max_attempts    = get_setting_int('ip_rate_limit_max_attempts', 20)
+    window_minutes  = get_setting_int('ip_rate_limit_window_minutes', 15)
+    lockout_minutes = get_setting_int('ip_rate_limit_lockout_minutes', 15)
+    now = datetime.utcnow()
+    row = db.execute("SELECT failed_attempts, window_start FROM login_ip_attempts WHERE ip_address=?", (ip,)).fetchone()
+    window_start = _parse_lockout_dt(row['window_start']) if row else None
+    if not row or not window_start or (now - window_start).total_seconds() > window_minutes * 60:
+        attempts     = 1
+        window_start = now
+    else:
+        attempts = (row['failed_attempts'] or 0) + 1
+    lockout_val = (now + timedelta(minutes=lockout_minutes)).strftime('%Y-%m-%d %H:%M:%S') if attempts >= max_attempts else None
+    db.execute(
+        "INSERT INTO login_ip_attempts (ip_address, failed_attempts, window_start, lockout_until) VALUES (?,?,?,?) "
+        "ON CONFLICT(ip_address) DO UPDATE SET failed_attempts=excluded.failed_attempts, window_start=excluded.window_start, lockout_until=excluded.lockout_until",
+        (ip, attempts, window_start.strftime('%Y-%m-%d %H:%M:%S'), lockout_val)
+    )
+    db.commit()
+
 @app.route('/api/login', methods=['POST'])
 def api_login():
     from werkzeug.security import check_password_hash
     data     = request.json or {}
     username = (data.get('username') or '').strip().lower()
     password = data.get('password') or ''
+    client_ip = _client_ip()
+    db  = get_db()
+
+    ip_block_msg = _check_ip_lockout(db, client_ip)
+    if ip_block_msg:
+        return jsonify({'error': ip_block_msg}), 429
+
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
-    db  = get_db()
     row = db.execute(
         "SELECT username, password_hash, display, role, failed_login_attempts, lockout_until FROM users WHERE username=?",
         (username,)
     ).fetchone()
     if not row:
+        _record_ip_failure(db, client_ip)
         return jsonify({'error': 'Invalid username or password'}), 401
 
     now = datetime.utcnow()
     lockout_until = _parse_lockout_dt(row['lockout_until'])
     if lockout_until and now < lockout_until:
+        _record_ip_failure(db, client_ip)
         return jsonify({'error': _lockout_message((lockout_until - now).total_seconds())}), 403
 
     if not check_password_hash(row['password_hash'], password):
@@ -205,9 +252,11 @@ def api_login():
             db.execute("UPDATE users SET failed_login_attempts=?, lockout_until=? WHERE username=?",
                        (attempts, new_lockout.strftime('%Y-%m-%d %H:%M:%S'), username))
             db.commit()
+            _record_ip_failure(db, client_ip)
             return jsonify({'error': _lockout_message(lockout_minutes * 60)}), 403
         db.execute("UPDATE users SET failed_login_attempts=? WHERE username=?", (attempts, username))
         db.commit()
+        _record_ip_failure(db, client_ip)
         return jsonify({'error': 'Invalid username or password'}), 401
 
     db.execute("UPDATE users SET failed_login_attempts=0, lockout_until=NULL WHERE username=?", (username,))
