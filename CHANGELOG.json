@@ -86,5 +86,15 @@
         "text": "Add per-risk due date SLA settings (Critical/High/Medium/Low, defaulting to 15/30/60/90 days) that auto-calculate a finding's due date on creation when none is set, replacing the old default_due_date_days setting"
       }
     ]
+  },
+  {
+    "commit": "82e4f56",
+    "date": "2026-08-03",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Fix a crash in the /upload-simple PDF import route caused by a column/value mismatch in the finding insert, and bring it in line with the main import path (default owner setting, auto-calculated due date)"
+      }
+    ]
   }
 ]
