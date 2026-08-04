@@ -102,3 +102,18 @@ real internal hostname is strongly recommended for production — it's more
 stable if the server's IP ever changes, and it's required if you want your
 internal CA to issue a properly-scoped certificate rather than one tied to
 a specific IP address.
+
+**Large file uploads failing with an HTML error instead of a JSON response:**
+this usually means Nginx is rejecting the request before it reaches the app,
+due to its default 1MB body size limit. Check `/var/log/nginx/error.log` for
+a line like "client intended to send too large body." Fix by adding a
+`client_max_body_size` directive to your server block (e.g. `50M` to allow
+files up to 50 megabytes):
+
+    server {
+        listen 443 ssl;
+        client_max_body_size 50M;
+        ...
+    }
+
+Then `sudo nginx -t && sudo systemctl reload nginx`.
