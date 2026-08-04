@@ -146,5 +146,19 @@
         "text": "Seed demo data with vulnerability scan history (2 earlier snapshots plus current) so the Vulnerabilities trend graph shows a real weekly/monthly progress curve instead of \"not enough scan history yet\"; also spread the two demo pen-test engagements further apart in time and fixed a crash-on-reseed bug in the vuln_scopes insert"
       }
     ]
+  },
+  {
+    "commit": "f2529c5",
+    "date": "2026-08-04",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Add a Vulnerability Report page for auditors: mean time to patch by severity, completion rate by severity, scan-to-scan velocity, and an aging table of the oldest open findings, alongside the existing progress-over-time trend"
+      },
+      {
+        "type": "fix",
+        "text": "Fix auditor/analyst roles getting an error on the POA&M Auditor Reports page (and silently losing branding/idle-timeout settings elsewhere) because it required admin access just to read org name and report labels"
+      }
+    ]
   }
 ]
