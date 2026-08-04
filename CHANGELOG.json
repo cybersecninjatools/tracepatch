@@ -136,5 +136,15 @@
         "text": "Add a single \"Enable/Disable Demo Mode\" control in Settings, replacing the old demo_data_visible toggle. The first click generates sample findings, engagements, and vulnerability scan/host data (previously required running scripts manually and left the Hosts and activity views empty); later clicks just show/hide it without re-seeding or deleting anything"
       }
     ]
+  },
+  {
+    "commit": "2e0cc8f",
+    "date": "2026-08-04",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Seed demo data with vulnerability scan history (2 earlier snapshots plus current) so the Vulnerabilities trend graph shows a real weekly/monthly progress curve instead of \"not enough scan history yet\"; also spread the two demo pen-test engagements further apart in time and fixed a crash-on-reseed bug in the vuln_scopes insert"
+      }
+    ]
   }
 ]
