@@ -2197,7 +2197,7 @@ def delete_vuln_scan(scan_id):
     removed_findings = 0
     for plugin_id in affected_plugins:
         remaining = db.execute("SELECT COUNT(*) FROM vuln_hosts WHERE plugin_id=?", (plugin_id,)).fetchone()[0]
-        vuln = db.execute("SELECT id FROM vuln_findings WHERE plugin_id=?", (plugin_id,)).fetchone()
+        vuln = db.execute("SELECT id, last_scan_filename FROM vuln_findings WHERE plugin_id=?", (plugin_id,)).fetchone()
         if not vuln:
             continue
         if remaining == 0:
@@ -2208,6 +2208,22 @@ def delete_vuln_scan(scan_id):
             removed_findings += 1
         else:
             db.execute("UPDATE vuln_findings SET host_count=? WHERE id=?", (remaining, vuln['id']))
+            if vuln['last_scan_filename'] == scan['filename']:
+                # This scan was the last one to touch the finding, so last_scan_filename/
+                # last_scope point at a scan that no longer exists - repoint them at
+                # whichever remaining scan most recently contributed a host.
+                latest_host = db.execute(
+                    "SELECT scan_id, scope FROM vuln_hosts WHERE plugin_id=? ORDER BY last_seen DESC LIMIT 1",
+                    (plugin_id,)
+                ).fetchone()
+                new_filename = None
+                if latest_host and latest_host['scan_id']:
+                    rescan = db.execute("SELECT filename FROM vuln_scans WHERE id=?", (latest_host['scan_id'],)).fetchone()
+                    new_filename = rescan['filename'] if rescan else None
+                db.execute(
+                    "UPDATE vuln_findings SET last_scan_filename=?, last_scope=? WHERE id=?",
+                    (new_filename, latest_host['scope'] if latest_host else None, vuln['id'])
+                )
 
     db.execute("DELETE FROM vuln_snapshots WHERE scan_id=?", (scan_id,))
     db.execute("DELETE FROM vuln_scans WHERE id=?", (scan_id,))
