@@ -180,5 +180,15 @@
         "text": "Vulnerability scan uploads now mark findings as Likely Resolved when they disappear from a rescan of the same scope, instead of leaving them stuck Open."
       }
     ]
+  },
+  {
+    "commit": "b3fd896",
+    "date": "2026-08-04",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Deleting a vulnerability scan upload no longer fails with a server error \u2014 it was always broken due to a foreign key conflict with trend snapshot data."
+      }
+    ]
   }
 ]
