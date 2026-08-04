@@ -190,5 +190,15 @@
         "text": "Deleting a vulnerability scan upload no longer fails with a server error \u2014 it was always broken due to a foreign key conflict with trend snapshot data."
       }
     ]
+  },
+  {
+    "commit": "f9aeeb6",
+    "date": "2026-08-04",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Fixed vulnerability findings retaining a reference to a deleted scan's filename/scope when the finding still had hosts from other scans"
+      }
+    ]
   }
 ]
