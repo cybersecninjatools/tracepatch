@@ -99,18 +99,20 @@ VULN_FINDINGS = [
     },
     {
         'plugin_id': '42873', 'plugin_name': 'SSL Medium Strength Cipher Suites Supported (SWEET32)',
-        'severity': 'Medium', 'cves': 'CVE-2016-2183', 'host_count': 6,
+        'severity': 'Medium', 'cves': 'CVE-2016-2183', 'host_count': 6, 'status': 'Patched',
         'description': 'The remote host supports the use of SSL ciphers that offer medium strength encryption.',
         'solution': 'Reconfigure the service to disable support for 3DES/64-bit block ciphers.',
     },
 ]
+RESOLVED_STATUSES = ('Resolved', 'Patched', 'Likely Resolved', 'Risk Accepted', 'False Positive', 'Compensating Control')
 
 for i, v in enumerate(VULN_FINDINGS, start=1):
     vid = f"V-{i:03d}"
+    status = v.get('status', 'Open')
     conn.execute('''INSERT INTO vuln_findings
         (id,plugin_id,plugin_name,severity,status,owner,description,solution,cves,host_count,last_scan_filename,last_scope,is_demo)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1)''', (
-        vid, v['plugin_id'], v['plugin_name'], v['severity'], 'Open', 'Unassigned',
+        vid, v['plugin_id'], v['plugin_name'], v['severity'], status, 'Unassigned',
         v['description'], v['solution'], v['cves'], v['host_count'],
         'demo_nessus_scan_q3.csv', 'Internal Network'
     ))
@@ -123,12 +125,62 @@ for i, v in enumerate(VULN_FINDINGS, start=1):
         ))
     conn.execute("INSERT INTO vuln_activity (vuln_id,actor,action) VALUES (?,?,?)",
                  (vid, 'System', 'Detected in scan: demo_nessus_scan_q3.csv (scope: Internal Network)'))
+    if status != 'Open':
+        conn.execute("INSERT INTO vuln_activity (vuln_id,actor,action) VALUES (?,?,?)",
+                     (vid, 'Alex Chen', f'Updated: status: "Open" → "{status}"'))
     print(f"Created {vid}: {v['plugin_name']}")
 
+if not conn.execute("SELECT 1 FROM vuln_scopes WHERE name=?", ('Internal Network',)).fetchone():
+    conn.execute("INSERT INTO vuln_scopes (name) VALUES (?)", ('Internal Network',))
+
+# --- Vuln trend history ---
+# Two earlier scans (snapshot points only, no re-detailed findings — this
+# mirrors how the real /api/vuln/trend endpoint reads purely from
+# vuln_snapshots) so the Vulnerabilities trend graph has enough history to
+# render weekly/monthly on a fresh install instead of showing "not enough
+# scan history yet".
+TREND_SNAPSHOTS = [
+    ('nessus_scan_2026_06a.csv', '2026-06-08', {
+        'open_critical': 1, 'open_high': 1, 'open_medium': 1, 'open_low': 0,
+        'resolved_total': 0, 'total_findings': 3, 'completion_pct': 0,
+    }),
+    ('nessus_scan_2026_06b.csv', '2026-06-29', {
+        'open_critical': 1, 'open_high': 1, 'open_medium': 0, 'open_low': 0,
+        'resolved_total': 1, 'total_findings': 3, 'completion_pct': 33,
+    }),
+]
+for filename, scan_date, snap in TREND_SNAPSHOTS:
+    hist_cur = conn.execute(
+        "INSERT INTO vuln_scans (filename,scan_date,uploaded_by,finding_count,new_count,updated_count,scope,is_demo) VALUES (?,?,?,?,?,?,?,1)",
+        (filename, scan_date, 'Alex Chen', snap['total_findings'], 0, snap['total_findings'], 'Internal Network')
+    )
+    conn.execute(
+        "INSERT INTO vuln_snapshots (scan_id,snapshot_date,open_critical,open_high,open_medium,open_low,resolved_total,total_findings,completion_pct) "
+        "VALUES (?,?,?,?,?,?,?,?,?)",
+        (hist_cur.lastrowid, scan_date, snap['open_critical'], snap['open_high'], snap['open_medium'], snap['open_low'],
+         snap['resolved_total'], snap['total_findings'], snap['completion_pct'])
+    )
+    print(f"Created trend snapshot for {scan_date}")
+
+# Snapshot for the current scan, computed from VULN_FINDINGS so it always
+# matches the actually-seeded state above.
+final_open_by_sev = {'Critical': 0, 'High': 0, 'Medium': 0, 'Low': 0}
+final_resolved = 0
+for v in VULN_FINDINGS:
+    status = v.get('status', 'Open')
+    if status in RESOLVED_STATUSES:
+        final_resolved += 1
+    elif v['severity'] in final_open_by_sev:
+        final_open_by_sev[v['severity']] += 1
+final_total = len(VULN_FINDINGS)
+final_pct = round(final_resolved / final_total * 100) if final_total else 0
 conn.execute(
-    "INSERT INTO vuln_scopes (name) VALUES (?)",
-    ('Internal Network',)
+    "INSERT INTO vuln_snapshots (scan_id,snapshot_date,open_critical,open_high,open_medium,open_low,resolved_total,total_findings,completion_pct) "
+    "VALUES (?,?,?,?,?,?,?,?,?)",
+    (scan_id, '2026-07-20', final_open_by_sev['Critical'], final_open_by_sev['High'],
+     final_open_by_sev['Medium'], final_open_by_sev['Low'], final_resolved, final_total, final_pct)
 )
+print("Created trend snapshot for current scan")
 
 # --- Real user accounts ---
 USERS = [

@@ -59,7 +59,7 @@ if row:
 else:
     cur = conn.execute(
         "INSERT INTO engagements (name,type,vendor,eng_date,status,is_demo) VALUES (?,?,?,?,?,1)",
-        (DEMO_ENGAGEMENT_NAME, 'External Pen Test', 'Redacted Security Partners', '2026-07-01', 'active')
+        (DEMO_ENGAGEMENT_NAME, 'External Pen Test', 'Redacted Security Partners', '2026-05-15', 'active')
     )
     eng_id = cur.lastrowid
     print(f"Created demo engagement: {DEMO_ENGAGEMENT_NAME} (id={eng_id})")
