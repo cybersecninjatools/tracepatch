@@ -126,5 +126,15 @@
         "text": "Security hardening: escape all user-submitted content in the UI to close stored-XSS gaps, validate evidence uploads by actual file content instead of just filename extension, require authentication to view uploaded evidence files, and enforce the read-only auditor role server-side (not just in the UI) for creating/editing findings, engagements, and PDF/CSV imports"
       }
     ]
+  },
+  {
+    "commit": "3955382",
+    "date": "2026-08-04",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Add a single \"Enable/Disable Demo Mode\" control in Settings, replacing the old demo_data_visible toggle. The first click generates sample findings, engagements, and vulnerability scan/host data (previously required running scripts manually and left the Hosts and activity views empty); later clicks just show/hide it without re-seeding or deleting anything"
+      }
+    ]
   }
 ]
