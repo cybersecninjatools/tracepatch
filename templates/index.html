@@ -1355,37 +1355,71 @@ function setArchiveTab(tab){
   render();
 }
 
+const SETTINGS_GROUPS=[
+  {title:'Branding',keys:['app_title','org_name']},
+  {title:'Report Content',keys:['signer_title','report_classification','compliance_framework']},
+  {title:'Findings & Workflow',keys:['default_finding_owner','require_due_date_high_risk','due_date_days_critical','due_date_days_high','due_date_days_medium','due_date_days_low','max_evidence_file_mb','analysts_can_delete_findings']},
+  {title:'Login & Session Security',keys:['max_login_attempts','lockout_duration_minutes','ip_rate_limit_max_attempts','ip_rate_limit_window_minutes','ip_rate_limit_lockout_minutes','session_timeout_minutes','session_warning_minutes']},
+];
+
+function settingRowHtml(s,masterAdmin){
+  const canEdit=masterAdmin||(s.min_role==='admin');
+  const dis=canEdit?'':'disabled';
+  let input='';
+  if(s.type==='bool'){
+    input='<select id="setting-'+s.key+'" '+dis+'>'
+      +'<option value="true" '+(s.value==='true'?'selected':'')+'>Enabled</option>'
+      +'<option value="false" '+(s.value==='false'?'selected':'')+'>Disabled</option>'
+      +'</select>';
+  } else {
+    input='<input type="'+(s.type==='number'?'number':'text')+'" id="setting-'+s.key+'" value="'+escHtml(s.value)+'" '+dis+' style="max-width:200px">';
+  }
+  return '<tr>'
+    +'<td><div style="font-weight:500;font-size:13px">'+s.label+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+s.description+'</div></td>'
+    +'<td>'+input+'</td>'
+    +'<td><span style="font-size:10px;background:'+(s.min_role==='master_admin'?'#1e1240':'#0a2a15')+';color:'+(s.min_role==='master_admin'?'#c4b5fd':'#86efac')+';padding:2px 7px;border-radius:100px">'+s.min_role.replace('_',' ')+'</span></td>'
+    +'<td>'+(canEdit?'<button class="btn sm primary" data-key="'+s.key+'" onclick="saveSetting(this)">Save</button>':'')+'</td>'
+    +'</tr>';
+}
+
 async function renderSettings(c){
   if(!isAdmin()){c.innerHTML='<div class="empty"><p>Admin access required.</p></div>';return;}
   const settings=await api('/api/settings');
   const masterAdmin=isMasterAdmin();
+  const byKey=new Map(settings.map(s=>[s.key,s]));
+  const grouped=new Set(['demo_data_visible']);  // shown as a dedicated Demo Mode card instead
 
-  let rows='';
-  for(const s of settings){
-    if(s.key==='demo_data_visible')continue;  // shown as a dedicated Demo Mode card instead
-    const canEdit=masterAdmin||(s.min_role==='admin');
-    const dis=canEdit?'':'disabled';
-    let input='';
-    if(s.type==='bool'){
-      input='<select id="setting-'+s.key+'" '+dis+'>'
-        +'<option value="true" '+(s.value==='true'?'selected':'')+'>Enabled</option>'
-        +'<option value="false" '+(s.value==='false'?'selected':'')+'>Disabled</option>'
-        +'</select>';
-    } else {
-      input='<input type="'+(s.type==='number'?'number':'text')+'" id="setting-'+s.key+'" value="'+escHtml(s.value)+'" '+dis+' style="max-width:200px">';
+  let groupCards='';
+  for(const group of SETTINGS_GROUPS){
+    let rows='';
+    for(const key of group.keys){
+      const s=byKey.get(key);
+      if(!s)continue;
+      grouped.add(key);
+      rows+=settingRowHtml(s,masterAdmin);
     }
-    rows+='<tr>'
-      +'<td><div style="font-weight:500;font-size:13px">'+s.label+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">'+s.description+'</div></td>'
-      +'<td>'+input+'</td>'
-      +'<td><span style="font-size:10px;background:'+(s.min_role==='master_admin'?'#1e1240':'#0a2a15')+';color:'+(s.min_role==='master_admin'?'#c4b5fd':'#86efac')+';padding:2px 7px;border-radius:100px">'+s.min_role.replace('_',' ')+'</span></td>'
-      +'<td>'+(canEdit?'<button class="btn sm primary" data-key="'+s.key+'" onclick="saveSetting(this)">Save</button>':'')+'</td>'
-      +'</tr>';
+    if(!rows)continue;
+    groupCards+='<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">'+group.title+'</span></div>'
+      +'<table><thead><tr><th>Setting</th><th>Value</th><th>Required Role</th><th></th></tr></thead>'
+      +'<tbody>'+rows+'</tbody></table></div>';
   }
 
-  const demoSetting=settings.find(s=>s.key==='demo_data_visible');
+  // Any settings not covered by a named group above (e.g. newly added ones) still show up here.
+  let otherRows='';
+  for(const s of settings){
+    if(grouped.has(s.key))continue;
+    otherRows+=settingRowHtml(s,masterAdmin);
+  }
+  if(otherRows){
+    groupCards+='<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Other</span></div>'
+      +'<table><thead><tr><th>Setting</th><th>Value</th><th>Required Role</th><th></th></tr></thead>'
+      +'<tbody>'+otherRows+'</tbody></table></div>';
+  }
+
+  const demoSetting=byKey.get('demo_data_visible');
   const demoEnabled=!!demoSetting&&demoSetting.value==='true';
   const demoCard=masterAdmin?(
-    '<div class="card" style="margin-top:16px"><div class="card-header"><span class="card-header-title">Demo Mode</span>'
+    '<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Demo Mode</span>'
     +'<span class="badge '+(demoEnabled?'low':'high')+'">'+(demoEnabled?'Enabled':'Disabled')+'</span></div>'
     +'<div class="card-body" style="padding:14px 16px">'
     +'<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Shows synthetic sample findings, engagements, and vulnerability data alongside your real data — useful for demos and getting a feel for the app. The first time you turn it on, TracePatch generates that sample data automatically; turning it off just hides it, it doesn\'t delete anything, and turning it back on won\'t generate duplicates.</p>'
@@ -1394,10 +1428,7 @@ async function renderSettings(c){
   ):'';
 
   c.innerHTML='<div class="info-box">Settings are applied immediately and persist across server restarts. Changes to session timeout take effect on the next page load. Master admin settings are only editable by master admins.</div>'
-    +'<div class="card"><div class="card-header"><span class="card-header-title">Application Settings</span></div>'
-    +'<table><thead><tr><th>Setting</th><th>Value</th><th>Required Role</th><th></th></tr></thead>'
-    +'<tbody>'+rows+'</tbody></table></div>'
-    +demoCard;
+    +groupCards+demoCard;
 }
 
 async function toggleDemoMode(enable){
