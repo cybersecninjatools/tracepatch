@@ -276,6 +276,10 @@ def main():
     ensure_column(conn, 'users', 'email', 'TEXT')
     ensure_column(conn, 'users', 'failed_login_attempts', 'INTEGER NOT NULL DEFAULT 0')
     ensure_column(conn, 'users', 'lockout_until', 'TEXT')
+    ensure_column(conn, 'findings', 'is_demo', 'INTEGER DEFAULT 0')
+    ensure_column(conn, 'engagements', 'is_demo', 'INTEGER DEFAULT 0')
+    ensure_column(conn, 'vuln_findings', 'is_demo', 'INTEGER DEFAULT 0')
+    ensure_column(conn, 'vuln_scans', 'is_demo', 'INTEGER DEFAULT 0')
     for key, value, label, desc, type_, min_role in DEFAULT_SETTINGS:
         conn.execute(
             "INSERT OR IGNORE INTO app_settings (key, value, label, description, type, min_role) "
@@ -284,6 +288,8 @@ def main():
         )
     # Replaced by the per-risk due_date_days_* settings above.
     conn.execute("DELETE FROM app_settings WHERE key='default_due_date_days'")
+    # Stale leftover from an earlier version — no code reads or enforces this anymore.
+    conn.execute("DELETE FROM app_settings WHERE key='require_evidence_when_resolving'")
     conn.commit()
     conn.close()
     print(f"Database initialized at {DB_PATH}")
