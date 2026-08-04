@@ -148,7 +148,7 @@
     ]
   },
   {
-    "commit": "f2529c5",
+    "commit": "d78be31",
     "date": "2026-08-04",
     "changes": [
       {
@@ -158,6 +158,16 @@
       {
         "type": "fix",
         "text": "Fix auditor/analyst roles getting an error on the POA&M Auditor Reports page (and silently losing branding/idle-timeout settings elsewhere) because it required admin access just to read org name and report labels"
+      }
+    ]
+  },
+  {
+    "commit": "304b443",
+    "date": "2026-08-04",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Group related settings into labeled cards on the Settings page (Branding, Report Content, Findings & Workflow, Login & Session Security) instead of one long flat list"
       }
     ]
   }
