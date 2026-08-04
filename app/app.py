@@ -1929,6 +1929,19 @@ def upload_vuln_scan():
         host_count = db.execute("SELECT COUNT(*) FROM vuln_hosts WHERE plugin_id=?", (plugin_id,)).fetchone()[0]
         db.execute("UPDATE vuln_findings SET host_count=? WHERE id=?", (host_count, vuln_id))
 
+    # Scope-aware resolution: Open findings previously seen in this scope that did not
+    # reappear in this scan (i.e. their plugin_id is absent from the current upload) are
+    # no longer detected here and should be flagged for review.
+    current_plugin_ids = set(parsed.keys())
+    not_redetected = db.execute(
+        "SELECT id, plugin_id FROM vuln_findings WHERE status='Open' AND last_scope=?", (scope,)
+    ).fetchall()
+    for nr in not_redetected:
+        if nr['plugin_id'] not in current_plugin_ids:
+            db.execute("UPDATE vuln_findings SET status='Likely Resolved' WHERE id=?", (nr['id'],))
+            log_activity_vuln(db, nr['id'], 'System', f'Not detected in scan: {f.filename} — no longer appears in this scope, marked Likely Resolved for review')
+            resolved_count += 1
+
     # Auto-resolve: only when host_count is zero across ALL scopes, not just this one
     zeroed = db.execute(
         "SELECT id, plugin_name, status FROM vuln_findings WHERE host_count=0 AND status NOT IN ('Likely Resolved','Resolved','Patched','Risk Accepted','False Positive','Compensating Control')"
