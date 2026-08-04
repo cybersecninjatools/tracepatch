@@ -2209,6 +2209,7 @@ def delete_vuln_scan(scan_id):
         else:
             db.execute("UPDATE vuln_findings SET host_count=? WHERE id=?", (remaining, vuln['id']))
 
+    db.execute("DELETE FROM vuln_snapshots WHERE scan_id=?", (scan_id,))
     db.execute("DELETE FROM vuln_scans WHERE id=?", (scan_id,))
     db.commit()
     return jsonify({'ok': True, 'removed_findings': removed_findings})
