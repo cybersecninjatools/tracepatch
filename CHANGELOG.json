@@ -170,5 +170,15 @@
         "text": "Group related settings into labeled cards on the Settings page (Branding, Report Content, Findings & Workflow, Login & Session Security) instead of one long flat list"
       }
     ]
+  },
+  {
+    "commit": "6d11b7f",
+    "date": "2026-08-04",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Vulnerability scan uploads now mark findings as Likely Resolved when they disappear from a rescan of the same scope, instead of leaving them stuck Open."
+      }
+    ]
   }
 ]
