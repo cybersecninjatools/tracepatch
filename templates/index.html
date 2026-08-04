@@ -201,6 +201,9 @@ select option{background:var(--bg3)}
       <div class="nav-item" data-view="vulnhosts" onclick="nav('vulnhosts')">
         <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Hosts
       </div>
+      <div class="nav-item" data-view="vulnreport" onclick="nav('vulnreport')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="9" y2="17"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="15" y1="9" x2="15" y2="17"/></svg>Vuln Report
+      </div>
     </div>
     <div class="nav-section">
       <div class="nav-label">Administration</div>
@@ -288,14 +291,12 @@ async function loadMe(){
   }catch(e){document.getElementById('sidebar-user').textContent='User';}
   // Load settings and init idle timeout + apply branding
   try{
-    const settings=await api('/api/settings');
+    const settings=await api('/api/settings/public');
     const getSetting=(key,def)=>{const s=settings.find(s=>s.key===key);return s?s.value:def;};
     const timeoutMins=parseInt(getSetting('session_timeout_minutes','60'));
     const warningMins=parseInt(getSetting('session_warning_minutes','10'));
     const appTitle=getSetting('app_title','TracePatch');
-    
-    const settingsData=await api('/api/settings');
-    const orgName=(settingsData.find(s=>s.key==='org_name')||{}).value||'Your Organization';
+    const orgName=getSetting('org_name','Your Organization');
     // Apply branding
     document.title=appTitle;
     const h1=document.querySelector('.sidebar-header h1');
@@ -312,7 +313,7 @@ function nav(view){
   if(view==='users'&&!isAdmin())return;
   state.view=view;
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.view===view));
-  const titles={dashboard:'Dashboard',findings:'Findings',upload:'Import Pen Test Report',poam:'POA&M Tracking',reports:'Auditor Reports',users:'User Management',review:'Review Extracted Findings',changelog:'Changelog',updates:'System Updates',archived:'Archived Engagements',settings:'Application Settings',vulnerabilities:'Vulnerability Management',vulndetail:'Vulnerability Detail',vulnhosts:'Hosts',vulnhostdetail:'Host Detail'};
+  const titles={dashboard:'Dashboard',findings:'Findings',upload:'Import Pen Test Report',poam:'POA&M Tracking',reports:'Auditor Reports',users:'User Management',review:'Review Extracted Findings',changelog:'Changelog',updates:'System Updates',archived:'Archived Engagements',settings:'Application Settings',vulnerabilities:'Vulnerability Management',vulndetail:'Vulnerability Detail',vulnhosts:'Hosts',vulnhostdetail:'Host Detail',vulnreport:'Vulnerability Auditor Report'};
   document.getElementById('page-title').textContent=titles[view]||view;
   render();
 }
@@ -341,6 +342,7 @@ async function render(){
     else if(state.view==='vulndetail')await renderVulnDetail(c);
     else if(state.view==='vulnhosts')await renderVulnHosts(c);
     else if(state.view==='vulnhostdetail')await renderVulnHostDetail(c);
+    else if(state.view==='vulnreport')await renderVulnReport(c);
   }catch(e){c.innerHTML='<div class="empty"><p style="color:#ef4444">Error: '+escHtml(e.message)+'</p></div>';}
 }
 
@@ -716,7 +718,7 @@ async function addToPOAM(btn){
 
 async function renderReports(c){
   const [stats,findings,notesData]=await Promise.all([api('/api/stats'),api('/api/findings?poam=1'),api('/api/audit_notes')]);
-  const settingsData=await api('/api/settings');
+  const settingsData=await api('/api/settings/public');
   const orgName=(settingsData.find(s=>s.key==='org_name')||{}).value||'Your Organization';
   const signerTitle=(settingsData.find(s=>s.key==='signer_title')||{}).value||'IT Security Analyst';
   const reportClassification=(settingsData.find(s=>s.key==='report_classification')||{}).value||'Sensitive / Internal Use Only';
@@ -1564,6 +1566,7 @@ async function renderVulnerabilities(c){
     <div class="card"><div class="card-header"><span class="card-header-title">Vulnerabilities</span>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn sm" onclick="nav('vulnhosts')">View by host</button>
+        <button class="btn sm" onclick="nav('vulnreport')">Auditor report</button>
         ${isAdmin()?'<button class="btn sm" onclick="openManageScopes()">Manage scopes</button>':''}
         ${canUpload?'<button class="btn sm primary" onclick="openVulnUpload()">Upload Nessus scan</button>':''}
       </div>
@@ -1586,6 +1589,124 @@ async function renderVulnerabilities(c){
 function setVulnSevFilter(sev){
   state.vulnFilterSev=sev;
   render();
+}
+
+function renderMttpChart(mttp){
+  const sevs=['Critical','High','Medium','Low','Informational'];
+  const rows=sevs.map(s=>({sev:s,...mttp.by_severity[s]}));
+  const maxVal=Math.max(1,...rows.map(r=>r.mean||0),mttp.overall.mean||0);
+  const bars=rows.map(r=>{
+    const pct=r.mean?Math.max(2,r.mean/maxVal*100):0;
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+      +'<div style="width:88px;font-size:12px;color:var(--text2)">'+r.sev+'</div>'
+      +'<div style="flex:1;background:var(--border);border-radius:4px;height:16px;position:relative;overflow:hidden">'
+      +(r.mean!==null?'<div style="width:'+pct+'%;height:100%;background:'+VULN_SEVERITY_COLORS[r.sev]+';border-radius:4px"></div>':'')
+      +'</div>'
+      +'<div style="width:130px;font-size:12px;color:var(--text2);text-align:right">'+(r.mean!==null?r.mean+' days avg ('+r.count+')':'&mdash;')+'</div>'
+      +'</div>';
+  }).join('');
+  return '<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Mean Time to Patch</span>'
+    +'<span style="font-size:12px;color:var(--text3)">'+(mttp.overall.mean!==null?'Overall: '+mttp.overall.mean+' days avg / '+mttp.overall.median+' days median ('+mttp.overall.count+' remediated)':'No remediated findings yet')+'</span></div>'
+    +'<div class="card-body">'
+    +'<p style="font-size:11px;color:var(--text3);margin-bottom:14px">Days from first detection to remediation (Resolved / Patched / Likely Resolved). Risk-accepted and false-positive findings are excluded — this measures actual fixes, not risk decisions.</p>'
+    +bars
+    +'</div></div>';
+}
+
+function renderCompletionBySeverityChart(cbs){
+  const sevs=['Critical','High','Medium','Low','Informational'];
+  const bars=sevs.map(s=>{
+    const r=cbs[s]||{total:0,done:0,pct:0};
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+      +'<div style="width:88px;font-size:12px;color:var(--text2)">'+s+'</div>'
+      +'<div style="flex:1;background:var(--border);border-radius:4px;height:16px;position:relative;overflow:hidden">'
+      +'<div style="width:'+r.pct+'%;height:100%;background:'+VULN_SEVERITY_COLORS[s]+';border-radius:4px"></div>'
+      +'</div>'
+      +'<div style="width:130px;font-size:12px;color:var(--text2);text-align:right">'+r.pct+'% ('+r.done+'/'+r.total+')</div>'
+      +'</div>';
+  }).join('');
+  return '<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Completion Rate by Severity</span></div>'
+    +'<div class="card-body">'+bars+'</div></div>';
+}
+
+function renderVelocityChart(velocity){
+  if(!velocity||velocity.length<2){
+    return '<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Scan-to-Scan Velocity</span></div>'
+      +'<div class="card-body"><div class="empty" style="padding:24px"><p>Not enough scan history yet to show velocity.</p></div></div></div>';
+  }
+  const pts=velocity.slice(-10);
+  const W=760,H=200,padL=36,padR=16,padT=16,padB=30;
+  const plotW=W-padL-padR,plotH=H-padT-padB;
+  const maxVal=Math.max(1,...pts.map(p=>Math.max(p.new_findings,p.resolved_since_last||0)));
+  const groupW=plotW/pts.length;
+  const barW=Math.min(22,groupW/3.2);
+  let bars='',xLabels='';
+  pts.forEach((p,i)=>{
+    const cx=padL+i*groupW+groupW/2;
+    const newH=p.new_findings/maxVal*plotH;
+    const resH=(p.resolved_since_last||0)/maxVal*plotH;
+    bars+='<rect x="'+(cx-barW-2)+'" y="'+(padT+plotH-newH)+'" width="'+barW+'" height="'+newH+'" fill="#f97316"><title>'+p.scan_date+': '+p.new_findings+' new</title></rect>';
+    bars+='<rect x="'+(cx+2)+'" y="'+(padT+plotH-resH)+'" width="'+barW+'" height="'+resH+'" fill="#22c55e"><title>'+p.scan_date+': '+(p.resolved_since_last||0)+' resolved</title></rect>';
+    xLabels+='<text x="'+cx+'" y="'+(H-8)+'" font-size="10" fill="var(--text3)" text-anchor="middle">'+p.scan_date+'</text>';
+  });
+  const svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;max-height:220px">'
+    +'<line x1="'+padL+'" y1="'+(padT+plotH)+'" x2="'+(W-padR)+'" y2="'+(padT+plotH)+'" stroke="var(--border)" stroke-width="1"/>'
+    +bars+xLabels+'</svg>';
+  return '<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Scan-to-Scan Velocity</span></div>'
+    +'<div class="card-body">'
+    +'<div style="display:flex;gap:16px;margin-bottom:8px;font-size:11px;color:var(--text2)"><span><span style="display:inline-block;width:10px;height:10px;background:#f97316;border-radius:2px;margin-right:4px"></span>New findings introduced</span><span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;margin-right:4px"></span>Resolved since last scan</span></div>'
+    +svg+'</div></div>';
+}
+
+function renderAgingTable(aging){
+  if(!aging||!aging.length){
+    return '<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Aging Open Findings</span></div>'
+      +'<div class="card-body"><div class="empty" style="padding:24px"><p>No open findings &mdash; everything currently tracked has been addressed.</p></div></div></div>';
+  }
+  const rows=aging.map(a=>{
+    const ageColor=a.days_open>=90?'#ef4444':a.days_open>=30?'#f59e0b':'inherit';
+    return '<tr><td><span class="badge '+a.severity.toLowerCase()+'">'+a.severity+'</span></td>'
+      +'<td style="font-weight:500">'+escHtml(a.plugin_name)+'</td>'
+      +'<td>'+a.host_count+' hosts</td>'
+      +'<td style="font-size:12px;color:var(--text2)">'+escHtml(a.owner||'Unassigned')+'</td>'
+      +'<td style="font-size:12px;color:var(--text3)">'+(a.first_seen||'').split(' ')[0]+'</td>'
+      +'<td style="font-weight:600;color:'+ageColor+'">'+(a.days_open!==null?a.days_open+' days':'&mdash;')+'</td></tr>';
+  }).join('');
+  return '<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Aging Open Findings</span><span style="font-size:12px;color:var(--text3)">Oldest '+aging.length+' still-open findings, by first detection date</span></div>'
+    +'<div style="overflow-x:auto"><table><thead><tr><th>Severity</th><th>Vulnerability</th><th>Hosts</th><th>Owner</th><th>First seen</th><th>Days open</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+
+async function renderVulnReport(c){
+  const [stats,report,settingsData]=await Promise.all([api('/api/vuln/stats'),api('/api/vuln/report'),api('/api/settings/public')]);
+  const trendPeriod=state.vulnTrendPeriod||'weekly';
+  let trend=null;
+  try{trend=await api('/api/vuln/trend?period='+trendPeriod);}catch(e){trend=null;}
+
+  const orgName=(settingsData.find(s=>s.key==='org_name')||{}).value||'Your Organization';
+  const signerTitle=(settingsData.find(s=>s.key==='signer_title')||{}).value||'IT Security Analyst';
+  const reportClassification=(settingsData.find(s=>s.key==='report_classification')||{}).value||'Sensitive / Internal Use Only';
+  const complianceFramework=(settingsData.find(s=>s.key==='compliance_framework')||{}).value||'NIST SP 800-53 Rev 5';
+  const today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+
+  const trendHtml=renderVulnTrendChart(trend,trendPeriod);
+  const mttpHtml=renderMttpChart(report.mttp);
+  const completionHtml=renderCompletionBySeverityChart(report.completion_by_severity);
+  const velocityHtml=renderVelocityChart(report.velocity);
+  const agingHtml=renderAgingTable(report.aging);
+
+  c.innerHTML='<div class="poam-header" style="margin-bottom:20px;padding-bottom:16px;border-bottom:3px solid #1a3a5c"><div style="display:flex;justify-content:space-between;align-items:flex-start">'
+    +'<div><div style="font-size:20px;font-weight:700;color:#1a3a5c">'+escHtml(orgName)+'</div><div style="font-size:15px;font-weight:500;margin-top:4px">Vulnerability Management Report</div><div style="font-size:12px;color:#555;margin-top:4px">'+escHtml(complianceFramework)+'</div></div>'
+    +'<div style="text-align:right;font-size:11px;color:#555"><div><strong>Report Date:</strong> '+today+'</div><div><strong>Classification:</strong> '+escHtml(reportClassification)+'</div><div><strong>Prepared by:</strong> IT Security</div></div>'
+    +'</div></div>'
+    +'<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"><button class="btn primary" onclick="window.print()">Print / Save PDF</button><button class="btn" onclick="nav(\'vulnerabilities\')">Back to Vulnerabilities</button></div>'
+    +'<div class="metrics"><div class="metric"><div class="label">Total tracked</div><div class="value">'+stats.total+'</div></div>'
+    +'<div class="metric"><div class="label">Open</div><div class="value" style="color:#ef4444">'+(stats.total-stats.resolved)+'</div></div>'
+    +'<div class="metric"><div class="label">Resolved / closed</div><div class="value" style="color:#22c55e">'+stats.resolved+'</div></div>'
+    +'<div class="metric"><div class="label">Completion</div><div class="value">'+stats.completion_pct+'%</div><div class="sub">of actionable findings</div></div></div>'
+    +trendHtml+mttpHtml+completionHtml+velocityHtml+agingHtml
+    +'<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Certification Statement</span></div><div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">I hereby certify that the information contained in this Vulnerability Management Report accurately represents the current vulnerability remediation status of the '+escHtml(orgName)+' information systems as of the date indicated above.'
+    +'<div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:40px"><div><div style="border-bottom:1px solid var(--border2);margin-bottom:4px;height:32px"></div><div style="font-size:11px">Signature &mdash; '+escHtml(signerTitle)+'</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Date: _______________</div></div>'
+    +'<div><div style="border-bottom:1px solid var(--border2);margin-bottom:4px;height:32px"></div><div style="font-size:11px">Signature &mdash; CIO / Authorizing Official</div><div style="font-size:11px;color:var(--text3);margin-top:2px">Date: _______________</div></div></div></div></div>';
 }
 
 function openVulnDetail(vid){

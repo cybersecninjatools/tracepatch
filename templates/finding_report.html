@@ -82,7 +82,7 @@ async function loadReport(){
 
   let reportClassification='Sensitive / Internal Use Only';
   try{
-    const settings=await api('/api/settings');
+    const settings=await api('/api/settings/public');
     reportClassification=(settings.find(s=>s.key==='report_classification')||{}).value||reportClassification;
   }catch(e){}
 

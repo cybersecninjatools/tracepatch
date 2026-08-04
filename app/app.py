@@ -362,6 +362,23 @@ def get_settings():
     rows = db.execute("SELECT * FROM app_settings ORDER BY min_role, key").fetchall()
     return jsonify([dict(r) for r in rows])
 
+# Cosmetic/report-display settings only — no lockout, rate-limit, or other
+# security config. Any logged-in user needs these for branding and for
+# auditor-facing report pages (POA&M, Vulnerability Report), which non-admin
+# roles like auditor/analyst must be able to view.
+PUBLIC_SETTING_KEYS = (
+    'app_title', 'org_name', 'signer_title', 'report_classification',
+    'compliance_framework', 'session_timeout_minutes', 'session_warning_minutes',
+)
+
+@app.route('/api/settings/public', methods=['GET'])
+@require_login
+def get_public_settings():
+    db = get_db()
+    placeholders = ','.join('?' * len(PUBLIC_SETTING_KEYS))
+    rows = db.execute(f"SELECT key, value FROM app_settings WHERE key IN ({placeholders})", PUBLIC_SETTING_KEYS).fetchall()
+    return jsonify([dict(r) for r in rows])
+
 @app.route('/api/settings/<key>', methods=['PUT'])
 @require_admin
 def update_setting(key):
@@ -2298,6 +2315,120 @@ def vuln_trend():
 
     return jsonify({'points': points, 'summary': summary})
 
+
+def _parse_vuln_dt(s):
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s, '%Y-%m-%d %H:%M:%S')
+    except (ValueError, TypeError):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d')
+        except (ValueError, TypeError):
+            return None
+
+
+def _vuln_fixed_at(db, vuln_id, status):
+    """Earliest activity-log timestamp where this finding's status became `status`.
+    Falls back to None if no matching log entry exists (e.g. pre-seeded demo state)."""
+    row = db.execute(
+        "SELECT ts FROM vuln_activity WHERE vuln_id=? AND (action LIKE ? OR "
+        "(? = 'Likely Resolved' AND action LIKE '%Auto-marked Likely Resolved%')) "
+        "ORDER BY ts ASC LIMIT 1",
+        (vuln_id, f'%"{status}"', status)
+    ).fetchone()
+    return row['ts'] if row else None
+
+
+def _mean_median(vals):
+    if not vals:
+        return {'mean': None, 'median': None, 'count': 0}
+    s = sorted(vals)
+    n = len(s)
+    median = s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+    return {'mean': round(sum(s) / n, 1), 'median': round(median, 1), 'count': n}
+
+
+@app.route('/api/vuln/report', methods=['GET'])
+def vuln_report():
+    db = get_db()
+    demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
+    demo_on = bool(demo_visible and demo_visible['value'] == 'true')
+    demo_filter = "" if demo_on else " AND is_demo=0"
+    demo_filter_vs = "" if demo_on else " AND vs.is_demo=0"
+
+    # --- Mean/median time-to-patch, overall and by severity ---
+    # Only counts findings actually remediated (Resolved/Patched/Likely Resolved) —
+    # Risk Accepted / False Positive / Compensating Control are risk decisions,
+    # not patches, so they're excluded to keep this an honest "time to fix" metric.
+    fixed_rows = db.execute(
+        f"SELECT id, severity, first_seen, updated_at, status FROM vuln_findings "
+        f"WHERE status IN ('Resolved','Patched','Likely Resolved') AND archived=0{demo_filter}"
+    ).fetchall()
+    days_overall = []
+    days_by_sev = {'Critical': [], 'High': [], 'Medium': [], 'Low': [], 'Informational': []}
+    for r in fixed_rows:
+        first_seen = _parse_vuln_dt(r['first_seen'])
+        fixed_ts = _vuln_fixed_at(db, r['id'], r['status']) or r['updated_at']
+        fixed_dt = _parse_vuln_dt(fixed_ts)
+        if not first_seen or not fixed_dt:
+            continue
+        d = max(0, (fixed_dt - first_seen).days)
+        days_overall.append(d)
+        if r['severity'] in days_by_sev:
+            days_by_sev[r['severity']].append(d)
+    mttp = {
+        'overall': _mean_median(days_overall),
+        'by_severity': {s: _mean_median(v) for s, v in days_by_sev.items()},
+    }
+
+    # --- Completion rate by severity ---
+    completion_by_severity = {}
+    for s in ['Critical', 'High', 'Medium', 'Low', 'Informational']:
+        total = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE severity=? AND archived=0{demo_filter}", (s,)).fetchone()[0]
+        done = db.execute(
+            f"SELECT COUNT(*) FROM vuln_findings WHERE severity=? AND status IN "
+            f"('Resolved','Patched','Likely Resolved','Risk Accepted','False Positive','Compensating Control') "
+            f"AND archived=0{demo_filter}", (s,)
+        ).fetchone()[0]
+        completion_by_severity[s] = {'total': total, 'done': done, 'pct': round(done / total * 100) if total else 0}
+
+    # --- Aging: oldest still-open findings ---
+    aging_rows = db.execute(
+        f"SELECT id, plugin_name, severity, host_count, owner, first_seen FROM vuln_findings "
+        f"WHERE status IN ('Open','In Progress') AND archived=0{demo_filter} ORDER BY first_seen ASC LIMIT 15"
+    ).fetchall()
+    now = datetime.now()
+    aging = []
+    for r in aging_rows:
+        fs = _parse_vuln_dt(r['first_seen'])
+        aging.append({
+            'id': r['id'], 'plugin_name': r['plugin_name'], 'severity': r['severity'],
+            'host_count': r['host_count'], 'owner': r['owner'], 'first_seen': r['first_seen'],
+            'days_open': (now - fs).days if fs else None,
+        })
+
+    # --- Scan-to-scan velocity: new findings introduced vs. resolved since the last scan ---
+    snaps = db.execute(
+        f"SELECT s.snapshot_date, s.resolved_total, vs.filename, vs.new_count FROM vuln_snapshots s "
+        f"JOIN vuln_scans vs ON s.scan_id=vs.id WHERE 1=1{demo_filter_vs} ORDER BY s.snapshot_date ASC"
+    ).fetchall()
+    velocity = []
+    prev_resolved = None
+    for r in snaps:
+        resolved_since = None if prev_resolved is None else max(0, r['resolved_total'] - prev_resolved)
+        velocity.append({
+            'scan_date': r['snapshot_date'], 'filename': r['filename'],
+            'new_findings': r['new_count'] or 0, 'resolved_since_last': resolved_since,
+        })
+        prev_resolved = r['resolved_total']
+
+    return jsonify({
+        'mttp': mttp,
+        'completion_by_severity': completion_by_severity,
+        'aging': aging,
+        'velocity': velocity,
+    })
 
 
 @app.route('/api/upload', methods=['POST'])
