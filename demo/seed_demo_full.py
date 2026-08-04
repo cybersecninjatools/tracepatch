@@ -70,6 +70,11 @@ for f in MORE_FINDINGS:
         f['risk'], f['status'], 1, f['owner'], '', f['remediation'], '',
         f['affected_hosts'], f['cves'], 1
     ))
+    conn.execute("INSERT INTO activity (finding_id,actor,action) VALUES (?,?,?)",
+                 (fid, f['owner'] if f['owner'] != 'Unassigned' else 'System', 'Finding created'))
+    if f['status'] != 'Open':
+        conn.execute("INSERT INTO activity (finding_id,actor,action) VALUES (?,?,?)",
+                     (fid, f['owner'] if f['owner'] != 'Unassigned' else 'System', f'Updated: status: "Open" → "{f["status"]}"'))
     print(f"Created {fid}: {f['title']}")
 
 # --- Vuln scan data ---
@@ -109,6 +114,15 @@ for i, v in enumerate(VULN_FINDINGS, start=1):
         v['description'], v['solution'], v['cves'], v['host_count'],
         'demo_nessus_scan_q3.csv', 'Internal Network'
     ))
+    for h in range(v['host_count']):
+        conn.execute('''INSERT INTO vuln_hosts
+            (plugin_id,host_ip,hostname,port,protocol,scan_id,scope)
+            VALUES (?,?,?,?,?,?,?)''', (
+            v['plugin_id'], f'10.60.{i}.{10+h}', f'demo-host-{i}-{h+1}.example.local',
+            '443', 'tcp', scan_id, 'Internal Network'
+        ))
+    conn.execute("INSERT INTO vuln_activity (vuln_id,actor,action) VALUES (?,?,?)",
+                 (vid, 'System', 'Detected in scan: demo_nessus_scan_q3.csv (scope: Internal Network)'))
     print(f"Created {vid}: {v['plugin_name']}")
 
 conn.execute(

@@ -1360,6 +1360,7 @@ async function renderSettings(c){
 
   let rows='';
   for(const s of settings){
+    if(s.key==='demo_data_visible')continue;  // shown as a dedicated Demo Mode card instead
     const canEdit=masterAdmin||(s.min_role==='admin');
     const dis=canEdit?'':'disabled';
     let input='';
@@ -1379,10 +1380,34 @@ async function renderSettings(c){
       +'</tr>';
   }
 
+  const demoSetting=settings.find(s=>s.key==='demo_data_visible');
+  const demoEnabled=!!demoSetting&&demoSetting.value==='true';
+  const demoCard=masterAdmin?(
+    '<div class="card" style="margin-top:16px"><div class="card-header"><span class="card-header-title">Demo Mode</span>'
+    +'<span class="badge '+(demoEnabled?'low':'high')+'">'+(demoEnabled?'Enabled':'Disabled')+'</span></div>'
+    +'<div class="card-body" style="padding:14px 16px">'
+    +'<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Shows synthetic sample findings, engagements, and vulnerability data alongside your real data — useful for demos and getting a feel for the app. The first time you turn it on, TracePatch generates that sample data automatically; turning it off just hides it, it doesn\'t delete anything, and turning it back on won\'t generate duplicates.</p>'
+    +'<button class="btn '+(demoEnabled?'':'primary')+'" id="demo-mode-btn" onclick="toggleDemoMode('+(!demoEnabled)+')">'+(demoEnabled?'Disable Demo Mode':'Enable Demo Mode')+'</button>'
+    +'</div></div>'
+  ):'';
+
   c.innerHTML='<div class="info-box">Settings are applied immediately and persist across server restarts. Changes to session timeout take effect on the next page load. Master admin settings are only editable by master admins.</div>'
     +'<div class="card"><div class="card-header"><span class="card-header-title">Application Settings</span></div>'
     +'<table><thead><tr><th>Setting</th><th>Value</th><th>Required Role</th><th></th></tr></thead>'
-    +'<tbody>'+rows+'</tbody></table></div>';
+    +'<tbody>'+rows+'</tbody></table></div>'
+    +demoCard;
+}
+
+async function toggleDemoMode(enable){
+  const btn=document.getElementById('demo-mode-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spinner"></span> '+(enable?'Enabling...':'Disabling...');}
+  try{
+    await api('/api/demo-mode',{method:'POST',body:{enable}});
+    await render();
+  }catch(e){
+    alert('Error: '+e.message);
+    if(btn){btn.disabled=false;btn.textContent=enable?'Enable Demo Mode':'Disable Demo Mode';}
+  }
 }
 
 async function saveSetting(btn){

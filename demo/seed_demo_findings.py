@@ -73,6 +73,11 @@ for f in FINDINGS:
         f['risk'], f['status'], 1, f['owner'], '', f['remediation'], '',
         f['affected_hosts'], f['cves'], 1
     ))
+    conn.execute("INSERT INTO activity (finding_id,actor,action) VALUES (?,?,?)",
+                 (fid, f['owner'] if f['owner'] != 'Unassigned' else 'System', 'Finding created'))
+    if f['status'] != 'Open':
+        conn.execute("INSERT INTO activity (finding_id,actor,action) VALUES (?,?,?)",
+                     (fid, f['owner'] if f['owner'] != 'Unassigned' else 'System', f'Updated: status: "Open" → "{f["status"]}"'))
     print(f"Created {fid}: {f['title']}")
 conn.commit()
 conn.close()

@@ -21,6 +21,8 @@ app.config['ORG_ABBREV'] = os.environ.get('SECTRACK_ORG_ABBREV', 'ORG')
 
 DB_PATH    = os.environ.get('SECTRACK_DB',    '/opt/sectrack/data/sectrack.db')
 UPLOADS_PATH = os.environ.get('SECTRACK_UPLOADS', '/opt/sectrack/uploads')
+APP_ROOT   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEMO_SEED_SCRIPTS = ['demo/seed_demo_findings.py', 'demo/seed_demo_full.py']
 
 RISK_ORDER = {'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3, 'Informational': 4}
 
@@ -380,6 +382,44 @@ def update_setting(key):
     db.commit()
     _settings_cache_time = 0  # Invalidate cache immediately
     return jsonify({'ok': True, 'key': key, 'value': value})
+
+@app.route('/api/demo-mode', methods=['POST'])
+@require_master_admin
+def set_demo_mode():
+    """Enable: seeds demo/ scripts (findings, engagements, vuln scan/host data,
+    users, activity history) the first time — if demo data already exists,
+    just flips demo_data_visible back on. Disable: flips it off without
+    deleting anything, matching the existing show/hide behavior."""
+    global _settings_cache_time
+    import subprocess, sys
+    data   = request.json or {}
+    enable = bool(data.get('enable'))
+    actor  = get_current_user()
+    db     = get_db()
+    seeded = False
+
+    if enable:
+        exists = db.execute("SELECT 1 FROM engagements WHERE is_demo=1 LIMIT 1").fetchone()
+        if not exists:
+            for script in DEMO_SEED_SCRIPTS:
+                try:
+                    result = subprocess.run(
+                        [sys.executable, script], cwd=APP_ROOT,
+                        capture_output=True, text=True, timeout=60
+                    )
+                except subprocess.TimeoutExpired:
+                    return jsonify({'error': f'Demo data generation timed out running {script}'}), 500
+                if result.returncode != 0:
+                    return jsonify({'error': f'Demo data generation failed running {script}: {result.stderr[-500:]}'}), 500
+            seeded = True
+
+    db.execute(
+        "UPDATE app_settings SET value=?, updated_by=?, updated_at=datetime('now') WHERE key='demo_data_visible'",
+        ('true' if enable else 'false', actor.get('display', actor.get('username')))
+    )
+    db.commit()
+    _settings_cache_time = 0  # Invalidate cache immediately
+    return jsonify({'ok': True, 'enabled': enable, 'seeded': seeded})
 
 # ---------- Routes: patch management ----------
 PATCH_STATUS_PATH = '/opt/sectrack/patch-mgmt/patch_status.json'
