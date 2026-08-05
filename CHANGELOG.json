@@ -220,5 +220,15 @@
         "text": "Mean Time to Patch now correctly reflects real remediation duration for findings auto-resolved via scan delta detection, instead of always showing 0 days"
       }
     ]
+  },
+  {
+    "commit": "b1932ce",
+    "date": "2026-08-05",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Added a 'Hide Informational items' setting (on by default) that excludes Informational-severity findings and vulnerabilities from dashboards, lists, and reports without deleting or archiving them"
+      }
+    ]
   }
 ]
