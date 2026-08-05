@@ -210,5 +210,15 @@
         "text": "Vulnerability dashboard's Progress Over Time section now shows a plain-language remediation summary and progress bar, with simpler labels (Total Vulnerabilities / Remediated)"
       }
     ]
+  },
+  {
+    "commit": "e7342d3",
+    "date": "2026-08-05",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Mean Time to Patch now correctly reflects real remediation duration for findings auto-resolved via scan delta detection, instead of always showing 0 days"
+      }
+    ]
   }
 ]
