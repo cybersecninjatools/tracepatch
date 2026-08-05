@@ -1465,14 +1465,23 @@ async function saveSetting(btn){
 // ---------- Vulnerability Tracker ----------
 const VULN_SEVERITY_COLORS={Critical:'#ef4444',High:'#f97316',Medium:'#f59e0b',Low:'#3b82f6',Informational:'#64748b'};
 
-function renderVulnTrendChart(trend, period){
+function renderVulnProgressSummary(stats){
+  if(!stats) return '';
+  const pct=stats.completion_pct||0;
+  return '<div style="margin-bottom:16px">'
+    +'<div style="font-size:15px;font-weight:600;margin-bottom:8px">'+stats.resolved+' of '+stats.total+' vulnerabilities remediated <span style="color:var(--text2);font-weight:400">('+pct+'% complete)</span></div>'
+    +'<div style="background:var(--border);border-radius:6px;height:10px;overflow:hidden"><div style="background:#22c55e;height:100%;width:'+pct+'%;border-radius:6px"></div></div>'
+    +'</div>';
+}
+
+function renderVulnTrendChart(trend, period, stats){
   const periodBtns=['weekly','monthly','yearly'].map(p=>
     '<button class="filter-chip '+(period===p?'active':'')+'" onclick="setVulnTrendPeriod(\''+p+'\')">'+p.charAt(0).toUpperCase()+p.slice(1)+'</button>'
   ).join('');
 
   if(!trend || !trend.points || trend.points.length===0){
     return '<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Progress Over Time</span><div class="filters" style="padding:0">'+periodBtns+'</div></div>'
-      +'<div class="card-body"><div class="empty" style="padding:24px"><p>Not enough scan history yet. Upload scans over time to see your progress trend.</p></div></div></div>';
+      +'<div class="card-body">'+renderVulnProgressSummary(stats)+'<div class="empty" style="padding:24px"><p>Not enough scan history yet. Upload scans over time to see your progress trend.</p></div></div></div>';
   }
 
   const pts=trend.points;
@@ -1527,15 +1536,16 @@ function renderVulnTrendChart(trend, period){
     const pctChangeSign=s.pct_change>=0?'+':'';
     summaryHtml='<div style="display:flex;gap:24px;padding:12px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--text2)">'
       +'<div>Completion: <strong>'+s.start_pct+'%</strong> &rarr; <strong>'+s.end_pct+'%</strong> <span style="color:'+pctChangeColor+'">('+pctChangeSign+s.pct_change+' pts)</span></div>'
-      +'<div>Total tracked: <strong>'+s.start_total+'</strong> &rarr; <strong>'+s.end_total+'</strong></div>'
-      +'<div>Resolved: <strong>'+s.start_resolved+'</strong> &rarr; <strong>'+s.end_resolved+'</strong></div>'
+      +'<div>Total Vulnerabilities: <strong>'+s.start_total+'</strong> &rarr; <strong>'+s.end_total+'</strong></div>'
+      +'<div>Remediated: <strong>'+s.start_resolved+'</strong> &rarr; <strong>'+s.end_resolved+'</strong></div>'
       +'</div>';
   }
 
   return '<div class="card" style="margin-top:14px">'
     +'<div class="card-header"><span class="card-header-title">Progress Over Time</span><div class="filters" style="padding:0">'+periodBtns+'</div></div>'
     +'<div class="card-body">'
-    +'<div style="display:flex;gap:16px;margin-bottom:8px;font-size:11px;color:var(--text2)"><span><span style="display:inline-block;width:10px;height:10px;background:#f97316;border-radius:2px;margin-right:4px"></span>Total tracked</span><span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;margin-right:4px"></span>Resolved/closed</span></div>'
+    +renderVulnProgressSummary(stats)
+    +'<div style="display:flex;gap:16px;margin-bottom:8px;font-size:11px;color:var(--text2)"><span><span style="display:inline-block;width:10px;height:10px;background:#f97316;border-radius:2px;margin-right:4px"></span>Total Vulnerabilities</span><span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;margin-right:4px"></span>Remediated</span></div>'
     +svg
     +'</div>'
     +summaryHtml
@@ -1590,7 +1600,7 @@ async function renderVulnerabilities(c){
 
   const canUpload=!isAuditor();
 
-  const trendHtml=renderVulnTrendChart(trend, trendPeriod);
+  const trendHtml=renderVulnTrendChart(trend, trendPeriod, stats);
   c.innerHTML=`<div class="metrics">${sevCards}</div>
   ${trendHtml}
   <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-top:14px">
@@ -1719,7 +1729,7 @@ async function renderVulnReport(c){
   const complianceFramework=(settingsData.find(s=>s.key==='compliance_framework')||{}).value||'NIST SP 800-53 Rev 5';
   const today=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
 
-  const trendHtml=renderVulnTrendChart(trend,trendPeriod);
+  const trendHtml=renderVulnTrendChart(trend,trendPeriod,stats);
   const mttpHtml=renderMttpChart(report.mttp);
   const completionHtml=renderCompletionBySeverityChart(report.completion_by_severity);
   const velocityHtml=renderVelocityChart(report.velocity);
@@ -1730,9 +1740,9 @@ async function renderVulnReport(c){
     +'<div style="text-align:right;font-size:11px;color:#555"><div><strong>Report Date:</strong> '+today+'</div><div><strong>Classification:</strong> '+escHtml(reportClassification)+'</div><div><strong>Prepared by:</strong> IT Security</div></div>'
     +'</div></div>'
     +'<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap"><button class="btn primary" onclick="window.print()">Print / Save PDF</button><button class="btn" onclick="nav(\'vulnerabilities\')">Back to Vulnerabilities</button></div>'
-    +'<div class="metrics"><div class="metric"><div class="label">Total tracked</div><div class="value">'+stats.total+'</div></div>'
+    +'<div class="metrics"><div class="metric"><div class="label">Total Vulnerabilities</div><div class="value">'+stats.total+'</div></div>'
     +'<div class="metric"><div class="label">Open</div><div class="value" style="color:#ef4444">'+(stats.total-stats.resolved)+'</div></div>'
-    +'<div class="metric"><div class="label">Resolved / closed</div><div class="value" style="color:#22c55e">'+stats.resolved+'</div></div>'
+    +'<div class="metric"><div class="label">Remediated</div><div class="value" style="color:#22c55e">'+stats.resolved+'</div></div>'
     +'<div class="metric"><div class="label">Completion</div><div class="value">'+stats.completion_pct+'%</div><div class="sub">of actionable findings</div></div></div>'
     +trendHtml+mttpHtml+completionHtml+velocityHtml+agingHtml
     +'<div class="card" style="margin-top:14px"><div class="card-header"><span class="card-header-title">Certification Statement</span></div><div class="card-body" style="font-size:12px;color:var(--text2);line-height:1.8">I hereby certify that the information contained in this Vulnerability Management Report accurately represents the current vulnerability remediation status of the '+escHtml(orgName)+' information systems as of the date indicated above.'
