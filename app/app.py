@@ -845,6 +845,8 @@ def list_findings():
     demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
     if not (demo_visible and demo_visible['value'] == 'true'):
         q += " AND f.is_demo=0"
+    if get_setting_bool('hide_informational', True):
+        q += " AND f.risk!='Informational'"
     if status and status != 'All': q += " AND f.status=?"; params.append(status)
     if risk   and risk   != 'All': q += " AND f.risk=?";   params.append(risk)
     if poam == '1': q += " AND f.in_poam=1"
@@ -1176,6 +1178,9 @@ def stats():
     db       = get_db()
     demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
     demo_filter = "" if (demo_visible and demo_visible['value'] == 'true') else " AND is_demo=0"
+    hide_informational = get_setting_bool('hide_informational', True)
+    info_filter = " AND risk!='Informational'" if hide_informational else ""
+    demo_filter += info_filter
     total    = db.execute(f"SELECT COUNT(*) FROM findings WHERE 1=1{demo_filter}").fetchone()[0]
     open_c   = db.execute(f"SELECT COUNT(*) FROM findings WHERE status='Open'{demo_filter}").fetchone()[0]
     inprog   = db.execute(f"SELECT COUNT(*) FROM findings WHERE status='In Progress'{demo_filter}").fetchone()[0]
@@ -1193,7 +1198,8 @@ def stats():
     completion_pct    = round(actionable_resolved / actionable_total * 100) if actionable_total else 0
     by_risk  = {}
     by_risk_resolved = {}
-    for r in ['Critical','High','Medium','Low','Informational']:
+    risk_levels = ['Critical','High','Medium','Low'] if hide_informational else ['Critical','High','Medium','Low','Informational']
+    for r in risk_levels:
         by_risk[r]         = db.execute(f"SELECT COUNT(*) FROM findings WHERE risk=?{demo_filter}", (r,)).fetchone()[0]
         by_risk_resolved[r]= db.execute(f"SELECT COUNT(*) FROM findings WHERE risk=? AND status IN {COMPLETE_STATUSES}{demo_filter}", (r,)).fetchone()[0]
     return jsonify({'total':total,'open':open_c,'in_progress':inprog,'resolved':resolved,
@@ -2070,6 +2076,8 @@ def list_vuln_findings():
     demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
     if not (demo_visible and demo_visible['value'] == 'true'):
         q += " AND is_demo=0"
+    if get_setting_bool('hide_informational', True):
+        q += " AND severity!='Informational'"
     sev = request.args.get('severity')
     status = request.args.get('status')
     if sev and sev != 'All':
@@ -2256,18 +2264,20 @@ def vuln_stats():
     db = get_db()
     demo_visible = db.execute("SELECT value FROM app_settings WHERE key='demo_data_visible'").fetchone()
     demo_filter = "" if (demo_visible and demo_visible['value'] == 'true') else " AND is_demo=0"
-    total = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE archived=0{demo_filter}").fetchone()[0]
+    hide_informational = get_setting_bool('hide_informational', True)
+    sev_filter = demo_filter + (" AND severity!='Informational'" if hide_informational else "")
+    total = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE archived=0{sev_filter}").fetchone()[0]
     by_sev = {}
     open_by_sev = {}
-    for s in ['Critical','High','Medium','Low','Informational']:
+    severities = ['Critical','High','Medium','Low'] if hide_informational else ['Critical','High','Medium','Low','Informational']
+    for s in severities:
         by_sev[s] = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE severity=? AND archived=0{demo_filter}", (s,)).fetchone()[0]
         open_by_sev[s] = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE severity=? AND status='Open' AND archived=0{demo_filter}", (s,)).fetchone()[0]
     host_count = db.execute("SELECT COUNT(DISTINCT host_ip) FROM vuln_hosts").fetchone()[0]
-    resolved = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE status IN ('Resolved','Patched','Likely Resolved','False Positive','Compensating Control') AND archived=0{demo_filter}").fetchone()[0]
+    resolved = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE status IN ('Resolved','Patched','Likely Resolved','False Positive','Compensating Control') AND archived=0{sev_filter}").fetchone()[0]
     scan_count = db.execute(f"SELECT COUNT(*) FROM vuln_scans WHERE 1=1{demo_filter}").fetchone()[0]
 
     # Actionable = everything except Informational severity (doesn't count toward progress %)
-    actionable_total = db.execute("SELECT COUNT(*) FROM vuln_findings WHERE severity!='Informational' AND archived=0").fetchone()[0]
     actionable_total = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE severity!='Informational' AND archived=0{demo_filter}").fetchone()[0]
     actionable_resolved = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE severity!='Informational' AND status IN ('Resolved','Patched','Likely Resolved','Risk Accepted','False Positive','Compensating Control') AND archived=0{demo_filter}").fetchone()[0]
     completion_pct = round(actionable_resolved / actionable_total * 100) if actionable_total else 0
@@ -2394,6 +2404,9 @@ def vuln_report():
     demo_on = bool(demo_visible and demo_visible['value'] == 'true')
     demo_filter = "" if demo_on else " AND is_demo=0"
     demo_filter_vs = "" if demo_on else " AND vs.is_demo=0"
+    hide_informational = get_setting_bool('hide_informational', True)
+    sev_filter = demo_filter + (" AND severity!='Informational'" if hide_informational else "")
+    severities = ['Critical', 'High', 'Medium', 'Low'] if hide_informational else ['Critical', 'High', 'Medium', 'Low', 'Informational']
 
     # --- Mean/median time-to-patch, overall and by severity ---
     # Only counts findings actually remediated (Resolved/Patched/Likely Resolved) —
@@ -2401,10 +2414,10 @@ def vuln_report():
     # not patches, so they're excluded to keep this an honest "time to fix" metric.
     fixed_rows = db.execute(
         f"SELECT id, severity, first_seen, updated_at, status FROM vuln_findings "
-        f"WHERE status IN ('Resolved','Patched','Likely Resolved') AND archived=0{demo_filter}"
+        f"WHERE status IN ('Resolved','Patched','Likely Resolved') AND archived=0{sev_filter}"
     ).fetchall()
     days_overall = []
-    days_by_sev = {'Critical': [], 'High': [], 'Medium': [], 'Low': [], 'Informational': []}
+    days_by_sev = {s: [] for s in severities}
     for r in fixed_rows:
         first_seen = _parse_vuln_dt(r['first_seen'])
         fixed_ts = _vuln_fixed_at(db, r['id'], r['status']) or r['updated_at']
@@ -2422,7 +2435,7 @@ def vuln_report():
 
     # --- Completion rate by severity ---
     completion_by_severity = {}
-    for s in ['Critical', 'High', 'Medium', 'Low', 'Informational']:
+    for s in severities:
         total = db.execute(f"SELECT COUNT(*) FROM vuln_findings WHERE severity=? AND archived=0{demo_filter}", (s,)).fetchone()[0]
         done = db.execute(
             f"SELECT COUNT(*) FROM vuln_findings WHERE severity=? AND status IN "
@@ -2434,7 +2447,7 @@ def vuln_report():
     # --- Aging: oldest still-open findings ---
     aging_rows = db.execute(
         f"SELECT id, plugin_name, severity, host_count, owner, first_seen FROM vuln_findings "
-        f"WHERE status IN ('Open','In Progress') AND archived=0{demo_filter} ORDER BY first_seen ASC LIMIT 15"
+        f"WHERE status IN ('Open','In Progress') AND archived=0{sev_filter} ORDER BY first_seen ASC LIMIT 15"
     ).fetchall()
     now = datetime.now()
     aging = []

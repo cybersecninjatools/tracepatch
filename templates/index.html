@@ -379,9 +379,11 @@ async function renderDashboard(c){
   const critPct=critTotal?Math.round(critResolved/critTotal*100):100;
   const critColor=critPct===100?'#22c55e':critPct>=75?'#86efac':'#ef4444';
 
-  // Severity bars with resolved overlay (Informational shown as count only, no ratio)
+  // Severity bars with resolved overlay (Informational shown as count only, no ratio).
+  // Informational is omitted from stats.by_risk entirely when hide_informational is on.
   let bars2='';
   for(const r of RISK_LEVELS){
+    if(!(r in stats.by_risk))continue;
     const count=stats.by_risk[r]||0;
     if(r==='Informational'){
       bars2+=`<div class="bar-row">
@@ -416,11 +418,11 @@ async function renderDashboard(c){
       <div class="value">${stats.open+stats.in_progress}</div>
       <div class="sub">${stats.resolved} resolved &middot; ${stats.risk_accepted||0} risk accepted</div>
     </div>
-    <div class="metric">
+    ${('Informational' in stats.by_risk)?`<div class="metric">
       <div class="label">Informational</div>
-      <div class="value" style="color:var(--text2)">${(stats.by_risk&&stats.by_risk['Informational'])||0}</div>
+      <div class="value" style="color:var(--text2)">${stats.by_risk['Informational']||0}</div>
       <div class="sub">Not counted toward progress</div>
-    </div>
+    </div>`:''}
     <div class="metric">
       <div class="label">Critical severity</div>
       <div class="value" style="color:${critColor}">${critResolved} / ${critTotal}</div>
@@ -1358,7 +1360,7 @@ function setArchiveTab(tab){
 const SETTINGS_GROUPS=[
   {title:'Branding',keys:['app_title','org_name']},
   {title:'Report Content',keys:['signer_title','report_classification','compliance_framework']},
-  {title:'Findings & Workflow',keys:['default_finding_owner','require_due_date_high_risk','due_date_days_critical','due_date_days_high','due_date_days_medium','due_date_days_low','max_evidence_file_mb','analysts_can_delete_findings']},
+  {title:'Findings & Workflow',keys:['default_finding_owner','require_due_date_high_risk','due_date_days_critical','due_date_days_high','due_date_days_medium','due_date_days_low','max_evidence_file_mb','analysts_can_delete_findings','hide_informational']},
   {title:'Login & Session Security',keys:['max_login_attempts','lockout_duration_minutes','ip_rate_limit_max_attempts','ip_rate_limit_window_minutes','ip_rate_limit_lockout_minutes','session_timeout_minutes','session_warning_minutes']},
 ];
 
@@ -1567,6 +1569,7 @@ async function renderVulnerabilities(c){
 
   let sevCards='';
   for(const s of ['Critical','High','Medium','Low','Informational']){
+    if(!(s in stats.by_severity))continue;
     const total=stats.by_severity[s]||0;
     const open=stats.open_by_severity[s]||0;
     sevCards+='<div class="metric" style="cursor:pointer" onclick="setVulnSevFilter(\''+s+'\')">'
@@ -1613,7 +1616,7 @@ async function renderVulnerabilities(c){
       </div>
     </div>
     <div class="filters" style="padding:10px 16px 0">
-      ${['All','Critical','High','Medium','Low','Informational'].map(s=>'<button class="filter-chip '+(((state.vulnFilterSev||'All')===s)?'active':'')+'" onclick="setVulnSevFilter(\''+s+'\')">'+s+'</button>').join('')}
+      ${['All','Critical','High','Medium','Low','Informational'].filter(s=>s==='All'||(s in stats.by_severity)).map(s=>'<button class="filter-chip '+(((state.vulnFilterSev||'All')===s)?'active':'')+'" onclick="setVulnSevFilter(\''+s+'\')">'+s+'</button>').join('')}
     </div>
     <table><thead><tr><th>Severity</th><th>Vulnerability</th><th>Plugin ID</th><th>Hosts</th><th>Status</th><th>Owner</th><th>Scope</th></tr></thead><tbody>${rows}</tbody></table>
     </div>
@@ -1633,7 +1636,7 @@ function setVulnSevFilter(sev){
 }
 
 function renderMttpChart(mttp){
-  const sevs=['Critical','High','Medium','Low','Informational'];
+  const sevs=['Critical','High','Medium','Low','Informational'].filter(s=>s in mttp.by_severity);
   const rows=sevs.map(s=>({sev:s,...mttp.by_severity[s]}));
   const maxVal=Math.max(1,...rows.map(r=>r.mean||0),mttp.overall.mean||0);
   const bars=rows.map(r=>{
@@ -1655,7 +1658,7 @@ function renderMttpChart(mttp){
 }
 
 function renderCompletionBySeverityChart(cbs){
-  const sevs=['Critical','High','Medium','Low','Informational'];
+  const sevs=['Critical','High','Medium','Low','Informational'].filter(s=>s in cbs);
   const bars=sevs.map(s=>{
     const r=cbs[s]||{total:0,done:0,pct:0};
     return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'

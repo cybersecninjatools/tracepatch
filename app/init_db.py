@@ -267,6 +267,9 @@ DEFAULT_SETTINGS = [
      'Minutes before timeout to show warning', 'number', 'master_admin'),
     ('analysts_can_delete_findings', 'false', 'Analysts can delete findings',
      'Allow analyst role to delete findings (default: admin only)', 'bool', 'master_admin'),
+    ('hide_informational', 'true', 'Hide Informational items',
+     'Hide Informational-severity findings and vulnerabilities from dashboards and reports to '
+     'reduce clutter — they remain in the system and can be shown by disabling this setting.', 'bool', 'master_admin'),
 ]
 
 def main():
