@@ -1938,7 +1938,7 @@ def upload_vuln_scan():
     ).fetchall()
     for nr in not_redetected:
         if nr['plugin_id'] not in current_plugin_ids:
-            db.execute("UPDATE vuln_findings SET status='Likely Resolved' WHERE id=?", (nr['id'],))
+            db.execute("UPDATE vuln_findings SET status='Likely Resolved', updated_at=datetime('now') WHERE id=?", (nr['id'],))
             log_activity_vuln(db, nr['id'], 'System', f'Not detected in scan: {f.filename} — no longer appears in this scope, marked Likely Resolved for review')
             resolved_count += 1
 
@@ -1947,7 +1947,7 @@ def upload_vuln_scan():
         "SELECT id, plugin_name, status FROM vuln_findings WHERE host_count=0 AND status NOT IN ('Likely Resolved','Resolved','Patched','Risk Accepted','False Positive','Compensating Control')"
     ).fetchall()
     for z in zeroed:
-        db.execute("UPDATE vuln_findings SET status='Likely Resolved' WHERE id=?", (z['id'],))
+        db.execute("UPDATE vuln_findings SET status='Likely Resolved', updated_at=datetime('now') WHERE id=?", (z['id'],))
         log_activity_vuln(db, z['id'], 'System', 'Auto-marked Likely Resolved — no longer detected on any host in any scope')
         resolved_count += 1
 
@@ -2360,12 +2360,20 @@ def _parse_vuln_dt(s):
 
 def _vuln_fixed_at(db, vuln_id, status):
     """Earliest activity-log timestamp where this finding's status became `status`.
-    Falls back to None if no matching log entry exists (e.g. pre-seeded demo state)."""
+    Falls back to None if no matching log entry exists (e.g. pre-seeded demo state).
+    'Likely Resolved' is set by two auto-resolve code paths with their own message
+    wording rather than the quoted 'field: "old" -> "new"' format manual edits use, so
+    it's matched by their specific phrasing — not a bare 'Likely Resolved' substring,
+    since the unrelated re-detect/reopen log line can also quote that phrase in passing."""
+    if status == 'Likely Resolved':
+        clause = "(action LIKE '%marked Likely Resolved for review%' OR action LIKE '%Auto-marked Likely Resolved%')"
+        params = (vuln_id,)
+    else:
+        clause = "action LIKE ?"
+        params = (vuln_id, f'%"{status}"')
     row = db.execute(
-        "SELECT ts FROM vuln_activity WHERE vuln_id=? AND (action LIKE ? OR "
-        "(? = 'Likely Resolved' AND action LIKE '%Auto-marked Likely Resolved%')) "
-        "ORDER BY ts ASC LIMIT 1",
-        (vuln_id, f'%"{status}"', status)
+        f"SELECT ts FROM vuln_activity WHERE vuln_id=? AND {clause} ORDER BY ts ASC LIMIT 1",
+        params
     ).fetchone()
     return row['ts'] if row else None
 
