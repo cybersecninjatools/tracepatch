@@ -200,5 +200,15 @@
         "text": "Fixed vulnerability findings retaining a reference to a deleted scan's filename/scope when the finding still had hosts from other scans"
       }
     ]
+  },
+  {
+    "commit": "fcfe1af",
+    "date": "2026-08-05",
+    "changes": [
+      {
+        "type": "add",
+        "text": "Vulnerability dashboard's Progress Over Time section now shows a plain-language remediation summary and progress bar, with simpler labels (Total Vulnerabilities / Remediated)"
+      }
+    ]
   }
 ]
