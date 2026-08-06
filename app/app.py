@@ -170,8 +170,12 @@ def finding_report_page(fid):
 # ---------- Routes: authentication ----------
 @app.route('/login')
 def login_page():
+    db = get_db()
+    row = db.execute("SELECT value FROM app_settings WHERE key='app_title'").fetchone()
+    app_title = row['value'] if row else app.config['ORG_NAME']
     with open(os.path.join(app.template_folder, 'login.html')) as f:
-        return f.read().replace('{{ORG_NAME}}', app.config['ORG_NAME'])
+        return f.read().replace('{{ORG_NAME}}', app_title)
+
 
 def _parse_lockout_dt(s):
     if not s:
