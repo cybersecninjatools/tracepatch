@@ -230,5 +230,35 @@
         "text": "Added a 'Hide Informational items' setting (on by default) that excludes Informational-severity findings and vulnerabilities from dashboards, lists, and reports without deleting or archiving them"
       }
     ]
+  },
+  {
+    "commit": "27672a6",
+    "date": "2026-08-06",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Login page now correctly displays the application title from Settings instead of the fixed organization name"
+      }
+    ]
+  },
+  {
+    "commit": "17d9a03",
+    "date": "2026-08-06",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Updates page now shows the correct build command (build.sh) instead of outdated raw docker compose instructions"
+      }
+    ]
+  },
+  {
+    "commit": "cf21f01",
+    "date": "2026-08-06",
+    "changes": [
+      {
+        "type": "fix",
+        "text": "Hosts page and host detail view now correctly exclude Informational-severity items from vulnerability counts, matching the rest of the app"
+      }
+    ]
   }
 ]
