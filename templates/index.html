@@ -1264,7 +1264,7 @@ async function checkForUpdates(){
       result.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span class="badge medium">Update available</span><span style="font-size:13px;color:var(--text2)">'+check.current+' &rarr; '+check.latest+'</span></div>'
         +'<p style="font-size:13px;margin-bottom:12px"><a href="'+check.compare_url+'" target="_blank" style="color:var(--accent)">View changes on GitHub &rarr;</a></p>'
         +'<div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px;font-family:var(--mono);font-size:12px;line-height:1.8">'
-        +'cd ~/tracepatch<br>git pull<br>docker compose build<br>docker compose up -d --force-recreate'
+        +'cd ~/tracepatch<br>git pull<br>sudo ./build.sh'
         +'</div>'
         +'<p style="font-size:12px;color:var(--text3);margin-top:8px">Your data is safe during updates &mdash; it lives in Docker volumes, not in the container itself.</p>';
     }else{
