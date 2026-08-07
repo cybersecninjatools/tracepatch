@@ -2246,19 +2246,26 @@ def delete_vuln_scan(scan_id):
 @app.route('/api/vuln/hosts', methods=['GET'])
 def list_vuln_hosts():
     db = get_db()
-    rows = db.execute('''
-        SELECT host_ip, hostname, COUNT(DISTINCT plugin_id) as vuln_count, MAX(last_seen) as last_seen
-        FROM vuln_hosts GROUP BY host_ip ORDER BY vuln_count DESC
+    hide_informational = get_setting_bool('hide_informational', True)
+    sev_filter = " AND vf.severity!='Informational'" if hide_informational else ""
+    rows = db.execute(f'''
+        SELECT vh.host_ip, vh.hostname, COUNT(DISTINCT vh.plugin_id) as vuln_count, MAX(vh.last_seen) as last_seen
+        FROM vuln_hosts vh
+        JOIN vuln_findings vf ON vf.plugin_id = vh.plugin_id
+        WHERE 1=1{sev_filter}
+        GROUP BY vh.host_ip ORDER BY vuln_count DESC
     ''').fetchall()
     return jsonify([dict(r) for r in rows])
 
 @app.route('/api/vuln/hosts/<host_ip>', methods=['GET'])
 def get_vuln_host_detail(host_ip):
     db = get_db()
-    rows = db.execute('''
+    hide_informational = get_setting_bool('hide_informational', True)
+    sev_filter = " AND vf.severity!='Informational'" if hide_informational else ""
+    rows = db.execute(f'''
         SELECT vf.*, vh.port, vh.protocol, vh.hostname, vh.last_seen as host_last_seen
         FROM vuln_hosts vh JOIN vuln_findings vf ON vf.plugin_id = vh.plugin_id
-        WHERE vh.host_ip=?
+        WHERE vh.host_ip=?{sev_filter}
         ORDER BY CASE vf.severity WHEN 'Critical' THEN 0 WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 WHEN 'Low' THEN 3 ELSE 4 END
     ''', (host_ip,)).fetchall()
     return jsonify([dict(r) for r in rows])
